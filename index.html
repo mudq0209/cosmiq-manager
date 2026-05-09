@@ -1836,26 +1836,26 @@ async function gdriveLoad(){
       {headers:{Authorization:'Bearer '+gdriveToken}});
     const data=await r.json();
     if(data.dives&&Array.isArray(data.dives)){
-      // Smart merge: for each Drive dive, compare updatedAt with local version
-      const localMap=new Map(dives.map(d=>[d.id,d]));
+      const EDIT_FIELDS=['location','country','diveType','purpose','features',
+        'weather','waves','current','vis','suitType','airTemp','airMix',
+        'startBar','endBar','suitThickness','notes','rating','updatedAt','coverPhotoId'];
+      const localMap=new Map(dives.map(d=>[String(d.id),d]));
+      let newCount=0, updatedCount=0;
       for(const driveDive of data.dives){
-        const local=localMap.get(driveDive.id);
+        const local=localMap.get(String(driveDive.id));
         if(!local){
           // New dive from Drive — add it
           dives.push(driveDive);
-          localMap.set(driveDive.id,driveDive);
+          newCount++;
         } else {
-          // Dive exists locally — use whichever was updated more recently
-          const driveTime=new Date(driveDive.updatedAt||driveDive.savedAt||0).getTime();
-          const localTime=new Date(local.updatedAt||local.savedAt||0).getTime();
-          if(driveTime>localTime){
-            // Drive version is newer — update all editable fields
-            const editFields=['location','country','diveType','purpose','features',
-              'weather','waves','current','vis','suitType','airTemp','airMix',
-              'startBar','endBar','suitThickness','notes','rating','updatedAt',
-              'coverPhotoId'];
-            editFields.forEach(f=>{if(driveDive[f]!==undefined)local[f]=driveDive[f];});
-          }
+          // Existing dive — always apply Drive's editable fields
+          // (Drive is the sync source of truth; local edits must be Synced first to take effect)
+          EDIT_FIELDS.forEach(f=>{
+            if(driveDive[f]!==undefined&&driveDive[f]!==null&&driveDive[f]!==''){
+              local[f]=driveDive[f];
+              updatedCount++;
+            }
+          });
         }
       }
       if(data.downloadedIdx)data.downloadedIdx.forEach(i=>downloadedIdx.add(i));
@@ -1872,7 +1872,7 @@ async function gdriveLoad(){
       localStorage.setItem('cq_dl_idx',JSON.stringify([...downloadedIdx]));
       renderDives();
       gdriveSetStatus('Synced ✓ — '+dives.length+' dives');
-      log('Loaded from Drive — '+dives.length+' total dives','li');
+      log(`Loaded from Drive: ${newCount} new, ${updatedCount} fields updated`,'li');
     } else {
       gdriveSetStatus('Connected ✓');
     }
