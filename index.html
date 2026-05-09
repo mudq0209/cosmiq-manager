@@ -1640,11 +1640,12 @@ function gdriveSignIn(){
       fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
         headers:{Authorization:'Bearer '+gdriveToken}
       }).then(r=>r.json()).then(u=>{
-        sessionStorage.setItem('gdrive_name',u.name||'Google User');
-        sessionStorage.setItem('gdrive_pic',u.picture||'');
-        gdriveSetConnected(u.name||'Google User',u.picture||'');
-        log('Google Drive connected: '+u.name,'li');
-        // Auto-load from Drive on first connect
+        const name=u.name||u.given_name||u.email||'Google User';
+        const pic=u.picture||'';
+        sessionStorage.setItem('gdrive_name',name);
+        sessionStorage.setItem('gdrive_pic',pic);
+        gdriveSetConnected(name,pic);
+        log('Google Drive connected: '+name,'li');
         gdriveLoad();
       });
     }
@@ -1792,6 +1793,8 @@ function gdriveMaybeAutoSave(){
 
 // Init on load
 gdriveInit();
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 </script>
 </body>
 </html>
