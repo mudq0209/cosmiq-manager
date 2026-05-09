@@ -1090,8 +1090,9 @@ function renderDives(){
     const stars=d.rating?'⭐'.repeat(d.rating):'';
     const photos=getDivePhotos(d.id);
     const cover=photos.find(p=>String(p.id)===String(d.coverPhotoId))||photos[0];
-    const coverHtml=cover
-      ?`<img class="cover-photo" src="${cover.base64}" style="height:120px"/>`
+    const coverSrc=cover?.base64||(cover?.driveFileId?drivePhotoCache[cover.driveFileId]||'':null);
+    const coverHtml=coverSrc
+      ?`<img class="cover-photo" src="${coverSrc}" style="height:120px"/>`
       :'';
     return`<div class="dive-card" onclick="openDiveDetail(${d.id})">
       ${coverHtml}
@@ -1216,8 +1217,13 @@ function openDiveDetail(id){
   const coverWrap=document.getElementById("modalCoverWrap");
   const photos=getDivePhotos(id);
   const coverPhoto=photos.find(p=>String(p.id)===String(d.coverPhotoId))||photos[0];
-  if(coverPhoto){
+  if(coverPhoto&&coverPhoto.base64){
     coverWrap.innerHTML=`<img src="${coverPhoto.base64}" class="cover-photo"/>`;
+  } else if(coverPhoto&&coverPhoto.driveFileId){
+    coverWrap.innerHTML=`<div class="cover-placeholder">⏳</div>`;
+    gdriveGetPhoto(coverPhoto.driveFileId).then(b64=>{
+      if(b64)coverWrap.innerHTML=`<img src="${b64}" class="cover-photo"/>`;
+    });
   } else {
     coverWrap.innerHTML=`<div class="cover-placeholder">🤿</div>`;
   }
@@ -1341,7 +1347,18 @@ function readEXIFDate(file){
 
 // Get photos for current dive from localStorage
 function getDivePhotos(diveId){
-  try{return JSON.parse(localStorage.getItem('cq_photos_'+diveId)||'[]');}catch{return[];}
+  return getDivePhotosLocal(diveId);
+}
+
+// Async version: resolves base64 from Drive if needed
+async function getDivePhotosResolved(diveId){
+  const photos=getDivePhotosLocal(diveId);
+  for(const p of photos){
+    if(!p.base64&&p.driveFileId){
+      p.base64=await gdriveGetPhoto(p.driveFileId)||'';
+    }
+  }
+  return photos;
 }
 function saveDivePhotos(diveId,photos){
   try{localStorage.setItem('cq_photos_'+diveId,JSON.stringify(photos));}
@@ -1406,12 +1423,39 @@ function renderPhotoStrip(diveId){
   const photos=getDivePhotos(diveId);
   const strip=document.getElementById("photoStrip");
   if(!strip)return;
-  const thumbs=photos.map(p=>`
-    <img class="photo-thumb${p.isCover?' cover':''}"
-      src="${p.base64}" onclick="openPhotoViewer('${diveId}','${p.id}')"
-      title="${p.filename+(p.offsetSeconds!=null?'\n@ '+Math.round(p.offsetSeconds/60)+'min':'')}"
-    />`).join('');
+  const thumbs=photos.map(p=>{
+    const src=p.base64||'';
+    const thumb=src
+      ?`<img class="photo-thumb${p.isCover?' cover':''}" src="${src}"
+          onclick="openPhotoViewer('${diveId}','${p.id}')"
+          title="${p.filename+(p.offsetSeconds!=null?'\n@ '+Math.round(p.offsetSeconds/60)+'min':'')}"/>`
+      :`<div class="photo-thumb${p.isCover?' cover':''}"
+          style="background:var(--surf2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer"
+          onclick="loadAndShowPhoto('${diveId}','${p.id}')">⏳</div>`;
+    return thumb;
+  }).join('');
   strip.innerHTML=thumbs+`<div class="photo-add-btn" onclick="document.getElementById('photoInput').click()">＋</div>`;
+  // Lazy load Drive photos
+  photos.forEach(p=>{
+    if(!p.base64&&p.driveFileId){
+      gdriveGetPhoto(p.driveFileId).then(b64=>{
+        if(!b64)return;
+        p.base64=b64;
+        const photos2=getDivePhotosLocal(diveId);
+        const target=photos2.find(x=>String(x.id)===String(p.id));
+        if(target){target.base64=b64;saveDivePhotos(diveId,photos2);}
+        renderPhotoStrip(diveId); // re-render once loaded
+      });
+    }
+  });
+}
+
+async function loadAndShowPhoto(diveId,photoId){
+  const photos=getDivePhotosLocal(diveId);
+  const p=photos.find(x=>String(x.id)===String(photoId));
+  if(!p||!p.driveFileId)return;
+  const b64=await gdriveGetPhoto(p.driveFileId);
+  if(b64){p.base64=b64;saveDivePhotos(diveId,photos);openPhotoViewer(diveId,photoId);}
 }
 
 function openPhotoViewer(diveId,photoId){
@@ -1608,21 +1652,21 @@ function delCurrentDive(){
   closeModal();renderDives();
 }
 
-// ═══════ GOOGLE DRIVE SYNC ═══════
+// ═══════ GOOGLE DRIVE SYNC (Full: dives + photos) ═══════
 const GDRIVE_CLIENT_ID='16803641878-2avbqlt7m81plgej0sbq53erf4cod2bb.apps.googleusercontent.com';
-const GDRIVE_SCOPES='https://www.googleapis.com/auth/drive.appdata';
-const GDRIVE_FOLDER='cosmiq-manager';
+const GDRIVE_SCOPES='https://www.googleapis.com/auth/drive.file';
+const GDRIVE_FOLDER_NAME='COSMIQ Manager';
 const GDRIVE_FILENAME='dives.json';
 
 let gdriveToken=null;
-let gdriveUser=null;
+let gdriveFolderId=localStorage.getItem('gdrive_folder_id')||null;
+let drivePhotoCache={};
 
-// Restore token from session
 function gdriveInit(){
   const saved=sessionStorage.getItem('gdrive_token');
   if(saved){
     gdriveToken=saved;
-    const name=sessionStorage.getItem('gdrive_name')||'Google Drive';
+    const name=sessionStorage.getItem('gdrive_name')||'Google User';
     const pic=sessionStorage.getItem('gdrive_pic')||'';
     gdriveSetConnected(name,pic);
   }
@@ -1632,22 +1676,21 @@ function gdriveSignIn(){
   const client=google.accounts.oauth2.initTokenClient({
     client_id:GDRIVE_CLIENT_ID,
     scope:GDRIVE_SCOPES,
-    callback:(resp)=>{
+    callback:async(resp)=>{
       if(resp.error){log('Google sign-in error: '+resp.error,'le');return;}
       gdriveToken=resp.access_token;
       sessionStorage.setItem('gdrive_token',gdriveToken);
-      // Get user info
-      fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
-        headers:{Authorization:'Bearer '+gdriveToken}
-      }).then(r=>r.json()).then(u=>{
+      try{
+        const u=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+          {headers:{Authorization:'Bearer '+gdriveToken}}).then(r=>r.json());
         const name=u.name||u.given_name||u.email||'Google User';
         const pic=u.picture||'';
         sessionStorage.setItem('gdrive_name',name);
         sessionStorage.setItem('gdrive_pic',pic);
         gdriveSetConnected(name,pic);
         log('Google Drive connected: '+name,'li');
-        gdriveLoad();
-      });
+        await gdriveLoad();
+      }catch(e){log('Drive init error: '+e,'le');}
     }
   });
   client.requestAccessToken();
@@ -1655,29 +1698,28 @@ function gdriveSignIn(){
 
 function gdriveSignOut(){
   if(!confirm('Disconnect Google Drive? Your local data will remain.'))return;
-  gdriveToken=null;
+  gdriveToken=null;gdriveFolderId=null;drivePhotoCache={};
   sessionStorage.removeItem('gdrive_token');
   sessionStorage.removeItem('gdrive_name');
   sessionStorage.removeItem('gdrive_pic');
-  document.getElementById('gdriveConnectBtn').style.display='flex';
-  document.getElementById('gdriveStatus').textContent='Not connected — data saved locally only';
-  const bar=document.getElementById('gdriveBar');
-  bar.innerHTML=`
+  document.getElementById('gdriveBar').innerHTML=`
     <div style="font-size:20px">☁️</div>
     <div class="gdrive-info">
       <div class="gdrive-name">Google Drive Sync</div>
-      <div class="gdrive-status" id="gdriveStatus">Not connected — data saved locally only</div>
+      <div class="gdrive-status" id="gdriveStatus">Not connected</div>
     </div>
     <button class="gdrive-btn gdrive-connect" onclick="gdriveSignIn()">
-      <svg style="width:16px;height:16px" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Connect
-    </button>`;
+      <svg style="width:16px;height:16px" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>Connect</button>`;
 }
 
 function gdriveSetConnected(name,pic){
-  const bar=document.getElementById('gdriveBar');
-  bar.innerHTML=`
-    ${pic?`<img class="gdrive-avatar" src="${pic}" />`:`<div style="font-size:20px">👤</div>`}
+  document.getElementById('gdriveBar').innerHTML=`
+    ${pic?`<img class="gdrive-avatar" src="${pic}"/>`:`<div style="font-size:20px">👤</div>`}
     <div class="gdrive-info">
       <div class="gdrive-name">${name}</div>
       <div class="gdrive-status" id="gdriveStatus">Connected — tap Sync to update</div>
@@ -1686,112 +1728,175 @@ function gdriveSetConnected(name,pic){
     <button class="gdrive-btn gdrive-signout" onclick="gdriveSignOut()">✕</button>`;
 }
 
-// Find or get the appDataFolder file ID for dives.json
-async function gdriveFindFile(){
+function gdriveSetStatus(msg){
+  const el=document.getElementById('gdriveStatus');
+  if(el)el.textContent=msg;
+}
+
+async function gdriveGetFolder(){
+  if(gdriveFolderId)return gdriveFolderId;
   const r=await fetch(
-    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%22'+GDRIVE_FILENAME+'%22&fields=files(id,name,modifiedTime)',
-    {headers:{Authorization:'Bearer '+gdriveToken}}
-  );
+    `https://www.googleapis.com/drive/v3/files?q=name%3D'${GDRIVE_FOLDER_NAME}'%20and%20mimeType%3D'application%2Fvnd.google-apps.folder'%20and%20trashed%3Dfalse&fields=files(id)`,
+    {headers:{Authorization:'Bearer '+gdriveToken}});
+  const d=await r.json();
+  if(d.files&&d.files.length>0){
+    gdriveFolderId=d.files[0].id;
+  } else {
+    const cr=await fetch('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+gdriveToken,'Content-Type':'application/json'},
+      body:JSON.stringify({name:GDRIVE_FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})
+    });
+    gdriveFolderId=(await cr.json()).id;
+  }
+  localStorage.setItem('gdrive_folder_id',gdriveFolderId);
+  return gdriveFolderId;
+}
+
+async function gdriveFindFile(name){
+  const fid=await gdriveGetFolder();
+  const r=await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name%3D'${encodeURIComponent(name)}'%20and%20'${fid}'%20in%20parents%20and%20trashed%3Dfalse&fields=files(id,name)`,
+    {headers:{Authorization:'Bearer '+gdriveToken}});
   const d=await r.json();
   return d.files&&d.files.length>0?d.files[0]:null;
 }
 
-// Upload dives to Drive (appDataFolder — hidden from user's Drive UI but accessible)
+async function gdriveUploadFile(name,blob,existingId=null){
+  await gdriveGetFolder();
+  if(existingId){
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`,{
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+gdriveToken,'Content-Type':blob.type},
+      body:blob});
+    return existingId;
+  }
+  const meta=JSON.stringify({name,parents:[gdriveFolderId]});
+  const form=new FormData();
+  form.append('metadata',new Blob([meta],{type:'application/json'}));
+  form.append('file',blob);
+  const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+    method:'POST',headers:{Authorization:'Bearer '+gdriveToken},body:form});
+  return (await r.json()).id;
+}
+
 async function gdriveSave(){
-  if(!gdriveToken){log('Not connected to Google Drive','le');return;}
-  const el=document.getElementById('gdriveStatus');
-  if(el)el.textContent='Saving to Drive...';
+  if(!gdriveToken)return;
+  gdriveSetStatus('Saving...');
   try{
-    const existing=await gdriveFindFile();
-    const content=JSON.stringify({
-      dives,
-      downloadedIdx:[...downloadedIdx],
-      savedAt:new Date().toISOString(),
-      version:1
-    });
-    const blob=new Blob([content],{type:'application/json'});
-    let url,method,headers={Authorization:'Bearer '+gdriveToken};
-    if(existing){
-      url=`https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media`;
-      method='PATCH';
-    } else {
-      // Create new file in appDataFolder
-      const meta=JSON.stringify({name:GDRIVE_FILENAME,parents:['appDataFolder']});
-      const form=new FormData();
-      form.append('metadata',new Blob([meta],{type:'application/json'}));
-      form.append('file',blob);
-      url='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      method='POST';
-      const r=await fetch(url,{method,headers,body:form});
-      const d=await r.json();
-      if(el)el.textContent='Saved to Drive ✓ — '+new Date().toLocaleTimeString();
-      log('Saved to Google Drive','li');
-      return;
+    // Collect photo metadata from localStorage
+    const photoMeta={};
+    for(const d of dives){
+      const photos=getDivePhotosLocal(d.id);
+      if(!photos.length)continue;
+      // Upload photos that don't yet have a driveFileId
+      const updated=[];
+      for(const p of photos){
+        if(!p.driveFileId&&p.base64){
+          gdriveSetStatus('Uploading photo for '+( d.dateDisplay||d.date||'dive')+'...');
+          try{
+            const blob=base64ToBlob(p.base64);
+            p.driveFileId=await gdriveUploadFile(`photo_${d.id}_${p.id}.jpg`,blob);
+          }catch(e){log('Photo upload error: '+e,'le');}
+          await sleep(300);
+        }
+        updated.push({...p,base64:undefined}); // don't store base64 in Drive
+      }
+      saveDivePhotos(d.id,photos); // update local with driveFileId
+      photoMeta[d.id]=updated.map(p=>({
+        id:p.id,filename:p.filename,isCover:p.isCover,
+        offsetSeconds:p.offsetSeconds,exifDate:p.exifDate,
+        driveFileId:p.driveFileId||null
+      }));
     }
-    await fetch(url,{method,headers,body:blob});
-    if(el)el.textContent='Saved to Drive ✓ — '+new Date().toLocaleTimeString();
-    log('Saved to Google Drive','li');
+    // Save dives.json
+    const content=JSON.stringify({
+      dives,downloadedIdx:[...downloadedIdx],
+      photoMeta,savedAt:new Date().toISOString(),version:2
+    });
+    const existing=await gdriveFindFile(GDRIVE_FILENAME);
+    await gdriveUploadFile(GDRIVE_FILENAME,
+      new Blob([content],{type:'application/json'}),existing?.id||null);
+    gdriveSetStatus('Saved ✓ — '+new Date().toLocaleTimeString());
+    log('Saved to Drive','li');
   }catch(e){
-    if(el)el.textContent='Save failed: '+e.message;
+    gdriveSetStatus('Save failed: '+e.message);
     log('Drive save error: '+e,'le');
   }
 }
 
-// Load dives from Drive
 async function gdriveLoad(){
   if(!gdriveToken)return;
-  const el=document.getElementById('gdriveStatus');
-  if(el)el.textContent='Loading from Drive...';
+  gdriveSetStatus('Loading from Drive...');
   try{
-    const file=await gdriveFindFile();
-    if(!file){
-      if(el)el.textContent='No Drive data yet — will save on next sync';
-      return;
-    }
-    const r=await fetch(
-      `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
-      {headers:{Authorization:'Bearer '+gdriveToken}}
-    );
+    const file=await gdriveFindFile(GDRIVE_FILENAME);
+    if(!file){gdriveSetStatus('No Drive data yet — tap Sync to upload');return;}
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+      {headers:{Authorization:'Bearer '+gdriveToken}});
     const data=await r.json();
     if(data.dives&&Array.isArray(data.dives)){
-      // Merge: keep any local dives not in Drive, add Drive dives not local
       const localIds=new Set(dives.map(d=>d.id));
-      const driveIds=new Set(data.dives.map(d=>d.id));
-      // Add Drive dives that aren't local
       const newFromDrive=data.dives.filter(d=>!localIds.has(d.id));
       dives=[...dives,...newFromDrive];
-      // Merge downloadedIdx
       if(data.downloadedIdx)data.downloadedIdx.forEach(i=>downloadedIdx.add(i));
+      // Restore photo metadata
+      if(data.photoMeta){
+        for(const [diveId,photos] of Object.entries(data.photoMeta)){
+          const local=getDivePhotosLocal(diveId);
+          const localIds=new Set(local.map(p=>String(p.id)));
+          const toAdd=photos.filter(p=>!localIds.has(String(p.id)));
+          if(toAdd.length)saveDivePhotos(diveId,[...local,...toAdd]);
+        }
+      }
       localStorage.setItem('cq_dives',JSON.stringify(dives));
       localStorage.setItem('cq_dl_idx',JSON.stringify([...downloadedIdx]));
       renderDives();
-      if(el)el.textContent=`Loaded from Drive ✓ — ${data.dives.length} dives`;
-      log(`Loaded ${newFromDrive.length} new dives from Drive`,'li');
+      gdriveSetStatus('Loaded ✓ — '+dives.length+' dives');
+      log('Loaded from Drive: '+newFromDrive.length+' new dives','li');
     } else {
-      if(el)el.textContent='Connected ✓';
+      gdriveSetStatus('Connected ✓');
     }
   }catch(e){
-    if(el)el.textContent='Load failed: '+e.message;
+    gdriveSetStatus('Load failed: '+e.message);
     log('Drive load error: '+e,'le');
   }
 }
 
-// Sync: load first, then save (merge both directions)
 async function gdriveSync(){
   if(!gdriveToken){gdriveSignIn();return;}
-  const el=document.getElementById('gdriveStatus');
-  if(el)el.textContent='Syncing...';
   await gdriveLoad();
   await sleep(300);
   await gdriveSave();
 }
 
-// Auto-save to Drive whenever dives change (if connected)
-function gdriveMaybeAutoSave(){
-  if(gdriveToken)gdriveSave();
+function gdriveMaybeAutoSave(){if(gdriveToken)gdriveSave();}
+
+// Fetch photo from Drive (cached in memory)
+async function gdriveGetPhoto(driveFileId){
+  if(drivePhotoCache[driveFileId])return drivePhotoCache[driveFileId];
+  if(!gdriveToken)return null;
+  try{
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
+      {headers:{Authorization:'Bearer '+gdriveToken}});
+    const b64=await blobToBase64(await r.blob());
+    drivePhotoCache[driveFileId]=b64;
+    return b64;
+  }catch(e){return null;}
 }
 
-// Init on load
+function base64ToBlob(b64){
+  const parts=b64.split(','),mime=parts[0].match(/:(.*?);/)[1];
+  const bytes=atob(parts[1]),arr=new Uint8Array(bytes.length);
+  for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});
+}
+function getDivePhotosLocal(diveId){
+  try{return JSON.parse(localStorage.getItem('cq_photos_'+diveId)||'[]');}catch{return[];}
+}
+
 gdriveInit();
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
