@@ -1,0 +1,1663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>COSMIQ+ Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --deep:#0a1628;--mid:#0d2240;--light:#1a3a5c;
+  --teal:#00c4b4;--teal-dim:#009e91;--cyan:#64dfdf;
+  --warn:#f4a261;--danger:#e76f51;
+  --surf:rgba(255,255,255,.05);--surf2:rgba(255,255,255,.08);
+  --bdr:rgba(0,196,180,.2);--text:#e0f0f0;--dim:rgba(224,240,240,.5);
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--sans);
+  background:linear-gradient(160deg,var(--deep) 0%,var(--mid) 50%,#0a1e35 100%);
+  color:var(--text);min-height:100vh;padding:16px;max-width:640px;margin:0 auto;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+  opacity:.4;
+}
+*{position:relative;z-index:1}
+header{text-align:center;padding:20px 0 24px}
+.logo{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--teal);margin-bottom:5px}
+h1{font-size:22px;font-weight:600;letter-spacing:-.5px;color:#fff}
+#pill{
+  display:inline-flex;align-items:center;gap:6px;margin-top:8px;
+  padding:4px 12px;border-radius:20px;background:var(--surf);
+  border:1px solid var(--bdr);font-family:var(--mono);font-size:10px;color:var(--dim);transition:.3s;
+}
+#pill.on{color:var(--teal);border-color:var(--teal);background:rgba(0,196,180,.08)}
+#pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+button{cursor:pointer;border:none;font-family:var(--sans)}
+.btn-main{
+  width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,var(--teal),var(--teal-dim));
+  color:var(--deep);box-shadow:0 4px 20px rgba(0,196,180,.3);transition:.15s;margin-bottom:10px;
+}
+.btn-main:active{transform:scale(.98)}
+.btn-disc{background:var(--surf2);color:var(--dim);box-shadow:none;border:1px solid var(--bdr);display:none}
+.tabs{
+  display:flex;gap:4px;background:var(--surf);padding:4px;border-radius:12px;
+  margin-bottom:16px;border:1px solid var(--bdr);overflow-x:auto;
+}
+.tab{
+  flex:1;padding:8px 4px;background:none;border:none;
+  font-size:12px;font-weight:500;color:var(--dim);border-radius:8px;transition:.2s;white-space:nowrap;min-width:52px;
+}
+.tab.active{background:rgba(0,196,180,.15);color:var(--teal)}
+.sec{display:none}.sec.active{display:block;animation:fi .25s ease}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:12px}
+.ctitle{
+  font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--teal);
+  text-transform:uppercase;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bdr);
+}
+.lbl{font-size:12px;font-weight:500;color:var(--dim);margin-bottom:8px;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px}
+.bopt{
+  padding:9px 6px;background:var(--surf2);border:1px solid transparent;border-radius:8px;
+  color:var(--dim);font-size:12px;font-weight:500;transition:.2s;
+}
+.bopt.sel{background:rgba(0,196,180,.15);color:var(--teal);border-color:rgba(0,196,180,.4)}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+input[type=range]{flex:1;accent-color:var(--teal)}
+input[type=number],input[type=text]{
+  width:64px;padding:8px;text-align:center;background:var(--surf2);
+  border:1px solid var(--bdr);border-radius:8px;font-weight:600;color:var(--teal);
+  font-family:var(--mono);font-size:13px;
+}
+.val{font-family:var(--mono);font-weight:700;width:40px;text-align:right;color:var(--teal)}
+.bs{
+  padding:8px 14px;background:rgba(0,196,180,.12);color:var(--teal);
+  border:1px solid rgba(0,196,180,.25);border-radius:8px;font-size:12px;font-weight:600;transition:.15s;white-space:nowrap;
+}
+.bs:active{transform:scale(.97)}
+.bp{background:rgba(150,100,220,.12);color:#a78bfa;border-color:rgba(150,100,220,.25)}
+.bd{background:rgba(231,111,81,.12);color:var(--danger);border-color:rgba(231,111,81,.25)}
+.bc{background:rgba(100,180,220,.1);color:#64b5f6;border-color:rgba(100,180,220,.25)}
+select{
+  flex:1;padding:8px 10px;background:var(--surf2);border:1px solid var(--bdr);
+  border-radius:8px;color:var(--text);font-size:13px;
+}
+select option{background:var(--mid)}
+.warnbox{
+  background:rgba(244,162,97,.08);color:var(--warn);padding:10px;
+  border-radius:8px;font-size:11px;margin-top:10px;border:1px solid rgba(244,162,97,.2);display:none;
+}
+#logbox{
+  font-family:var(--mono);font-size:9px;color:rgba(100,220,220,.45);margin-top:16px;
+  height:90px;overflow-y:scroll;padding:10px;border-radius:10px;
+  background:rgba(0,0,0,.4);border:1px solid var(--bdr);white-space:pre-wrap;
+}
+.lt{color:#4dabf7}.lr{color:var(--teal)}.le{color:var(--danger);font-weight:700}.li{color:var(--warn)}
+
+/* ═══ DEEPBLU-STYLE DIVE CARDS ═══ */
+.dive-card{
+  background:var(--surf);border:1px solid var(--bdr);border-radius:16px;
+  margin-bottom:12px;overflow:hidden;cursor:pointer;transition:.2s;
+  animation:fi .3s ease;
+}
+.dive-card:active{transform:scale(.98)}
+.dive-card-header{
+  padding:14px 16px 10px;
+  display:flex;justify-content:space-between;align-items:flex-start;
+}
+.dive-card-left .dive-num{font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px;margin-bottom:2px}
+.dive-card-left .dive-date{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.dive-card-left .dive-time{font-size:12px;color:var(--dim);margin-top:1px}
+.dive-card-left .dive-loc{font-size:11px;color:var(--teal);margin-top:3px;display:flex;align-items:center;gap:4px}
+.dive-type-badge{
+  padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;
+  background:rgba(0,196,180,.12);color:var(--teal);border:1px solid rgba(0,196,180,.3);
+}
+.dive-type-badge.free{background:rgba(100,180,220,.12);color:#64b5f6;border-color:rgba(100,180,220,.3)}
+.dive-stats-row{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  padding:0 16px 12px;gap:8px;
+}
+.dive-stat{text-align:center;background:var(--surf2);border-radius:10px;padding:8px 4px}
+.dive-stat-val{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--teal)}
+.dive-stat-unit{font-size:9px;color:var(--dim)}
+.dive-stat-lbl{font-size:10px;color:var(--dim);margin-top:2px}
+.dive-chart-wrap{padding:0 0 2px;height:60px;background:rgba(0,0,0,.2)}
+.dive-chart-wrap canvas{width:100%;height:60px}
+
+/* ═══ DETAIL MODAL ═══ */
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(4px);
+}
+.modal-overlay.open{display:flex;flex-direction:column;justify-content:flex-end}
+.modal-sheet{
+  background:linear-gradient(180deg,#0d2240 0%,#0a1628 100%);
+  border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;
+  border-top:1px solid var(--bdr);
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:12px auto 4px}
+.modal-top{display:flex;justify-content:space-between;align-items:center;padding:8px 16px 12px}
+.modal-title{font-size:18px;font-weight:700;color:#fff}
+.modal-close{background:var(--surf2);border:none;color:var(--dim);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:0 16px 32px}
+
+/* Detail chart */
+.detail-chart-wrap{
+  height:140px;background:rgba(0,0,0,.3);border-radius:12px;
+  overflow:hidden;margin-bottom:16px;position:relative;
+}
+.detail-chart-wrap canvas{width:100%;height:140px}
+.chart-label{
+  position:absolute;bottom:6px;right:8px;
+  font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);
+}
+
+/* Detail stats */
+.detail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px}
+.dstat{background:var(--surf2);border-radius:10px;padding:10px 4px;text-align:center}
+.dstat-val{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--teal)}
+.dstat-unit{font-size:9px;color:var(--dim)}
+.dstat-lbl{font-size:9px;color:var(--dim);margin-top:2px}
+
+/* Edit sections */
+.edit-section{margin-bottom:16px}
+.edit-section-title{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--teal);text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bdr)}
+.edit-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.edit-label{font-size:12px;color:var(--dim);width:80px;flex-shrink:0}
+.edit-input{
+  flex:1;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr);
+  border-radius:8px;color:var(--text);font-size:13px;font-family:var(--sans);
+}
+.edit-input:focus{outline:none;border-color:var(--teal)}
+.type-toggle{display:flex;gap:6px;flex:1}
+.type-btn{
+  flex:1;padding:8px;border-radius:8px;border:1px solid var(--bdr);
+  background:var(--surf2);color:var(--dim);font-size:12px;font-weight:600;cursor:pointer;transition:.2s;
+}
+.type-btn.active{background:rgba(0,196,180,.15);color:var(--teal);border-color:rgba(0,196,180,.4)}
+.type-btn.active.free{background:rgba(100,180,220,.12);color:#64b5f6;border-color:rgba(100,180,220,.3)}
+.icon-opts{display:flex;gap:5px;flex:1;flex-wrap:wrap}
+.iopt{
+  flex:1;min-width:36px;padding:7px 4px;border-radius:8px;border:1px solid var(--bdr);
+  background:var(--surf2);color:var(--dim);font-size:11px;text-align:center;cursor:pointer;transition:.2s;
+}
+.iopt.active{background:rgba(0,196,180,.15);color:var(--teal);border-color:rgba(0,196,180,.4)}
+.star-row{display:flex;gap:6px;justify-content:center;margin-bottom:16px}
+.star-btn{font-size:24px;background:none;border:none;cursor:pointer;transition:.15s;opacity:.3;color:#ffd700}
+.star-btn.on{opacity:1}
+.modal-save-btn{
+  width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:700;
+  background:linear-gradient(135deg,var(--teal),var(--teal-dim));
+  color:var(--deep);border:none;cursor:pointer;margin-bottom:8px;
+}
+.modal-del-btn{
+  width:100%;padding:10px;border-radius:12px;font-size:13px;font-weight:600;
+  background:rgba(231,111,81,.1);color:var(--danger);border:1px solid rgba(231,111,81,.2);cursor:pointer;
+}
+textarea.edit-input{height:80px;resize:none}
+.conditions-tag{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.ctag{
+  padding:5px 10px;border-radius:20px;border:1px solid var(--bdr);
+  background:var(--surf2);color:var(--dim);font-size:11px;cursor:pointer;transition:.2s;
+}
+.ctag.active{background:rgba(0,196,180,.15);color:var(--teal);border-color:rgba(0,196,180,.4)}
+
+/* ═══ PHOTO FEATURES ═══ */
+.cover-photo{
+  width:100%;height:160px;object-fit:cover;display:block;
+  border-radius:14px 14px 0 0;
+}
+.cover-placeholder{
+  width:100%;height:100px;
+  background:linear-gradient(135deg,rgba(0,196,180,.08),rgba(0,50,80,.3));
+  display:flex;align-items:center;justify-content:center;
+  border-radius:14px 14px 0 0;
+  font-size:28px;opacity:.4;
+}
+.photo-strip{
+  display:flex;gap:6px;overflow-x:auto;padding:8px 16px 4px;
+  scrollbar-width:none;
+}
+.photo-strip::-webkit-scrollbar{display:none}
+.photo-thumb{
+  width:56px;height:56px;flex-shrink:0;border-radius:8px;
+  object-fit:cover;cursor:pointer;border:2px solid transparent;transition:.2s;
+}
+.photo-thumb.cover{border-color:var(--teal);}
+.photo-thumb:active{transform:scale(.95)}
+.photo-add-btn{
+  width:56px;height:56px;flex-shrink:0;border-radius:8px;
+  background:var(--surf2);border:1px dashed rgba(0,196,180,.4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:var(--teal);cursor:pointer;transition:.2s;
+}
+.photo-add-btn:active{transform:scale(.95)}
+.chart-photo-dot{
+  position:absolute;top:4px;
+  width:10px;height:10px;border-radius:50%;
+  background:var(--teal);border:2px solid #fff;
+  transform:translateX(-50%);cursor:pointer;
+  box-shadow:0 0 6px rgba(0,196,180,.6);
+}
+
+/* Photo viewer overlay */
+.photo-viewer{
+  display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.95);flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.photo-viewer.open{display:flex}
+.photo-viewer img{
+  max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;
+}
+.photo-viewer-info{
+  margin-top:12px;text-align:center;color:rgba(255,255,255,.7);font-size:12px;
+}
+.photo-viewer-close{
+  position:absolute;top:16px;right:16px;
+  background:rgba(255,255,255,.15);border:none;color:#fff;
+  width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;
+}
+.photo-viewer-actions{
+  display:flex;gap:10px;margin-top:12px;
+}
+.pv-btn{
+  padding:8px 16px;border-radius:20px;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;
+}
+.pv-set-cover{background:rgba(0,196,180,.2);color:var(--teal)}
+.pv-delete{background:rgba(231,111,81,.2);color:var(--danger)}
+
+/* Detail chart interactive */
+.detail-chart-wrap{position:relative}
+.chart-dots-layer{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+}
+  width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,#005f73,#0a9396);color:#fff;letter-spacing:.3px;
+  box-shadow:0 4px 20px rgba(10,147,150,.3);transition:.15s;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.dlbtn:active{transform:scale(.98)}
+.dlbtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.pwrap{background:rgba(255,255,255,.06);border-radius:6px;height:6px;margin:10px 0 3px;overflow:hidden}
+.pbar{background:linear-gradient(90deg,var(--teal),var(--cyan));height:6px;border-radius:6px;transition:width .3s;width:0}
+.plbl{font-family:var(--mono);font-size:9px;color:var(--dim);text-align:center;padding-bottom:2px}
+.sgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px}
+.sc{
+  padding:4px 2px;border-radius:5px;font-family:var(--mono);font-size:8px;
+  text-align:center;background:var(--surf2);color:var(--dim);border:1px solid transparent;transition:.3s;
+}
+.sc.new{background:rgba(0,196,180,.15);color:var(--teal);border-color:rgba(0,196,180,.4);font-weight:700}
+.sc.old{background:var(--surf);color:rgba(255,255,255,.15)}
+.dc{
+  background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:16px;
+  margin-bottom:10px;border-left:3px solid var(--teal);animation:fi .3s ease;
+}
+.dctop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.dnum{font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px}
+.ddate{font-size:15px;font-weight:600;color:#fff}
+.dtime{font-size:11px;color:var(--dim);margin-top:2px}
+.dstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sbox{background:var(--surf2);border-radius:10px;padding:10px 6px;text-align:center}
+.sval{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--teal)}
+.sunit{font-size:9px;color:var(--dim);margin-top:1px}
+.slbl{font-size:10px;color:var(--dim);margin-top:3px}
+.dchart{height:56px;width:100%;margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.3)}
+.empty{text-align:center;padding:32px 20px;color:var(--dim)}
+.empty .ico{font-size:38px;margin-bottom:10px;display:block;opacity:.45}
+.empty p{font-size:13px}.empty small{font-size:11px;opacity:.6;display:block;margin-top:4px}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;
+  font-family:var(--mono);background:rgba(0,196,180,.12);color:var(--teal);
+  border:1px solid rgba(0,196,180,.25);margin-left:6px;
+}
+.erow{display:flex;gap:8px;margin-bottom:12px}
+.erow .bs{flex:1;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Deepblu</div>
+  <h1>COSMIQ+ Manager</h1>
+  <div id="pill"><span class="dot"></span><span id="pillTxt">Disconnected</span></div>
+</header>
+
+<button id="conBtn" class="btn-main" onclick="doConnect()">🔗 Connect to COSMIQ+</button>
+<button id="disBtn" class="btn-main btn-disc" onclick="doDisconnect()">Disconnect</button>
+
+<div id="app" style="display:none">
+  <div class="tabs">
+    <button class="tab active" onclick="tab('dl',this)">🌊 Dive Log</button>
+    <button class="tab" onclick="tab('gen',this)">General</button>
+    <button class="tab" onclick="tab('env',this)">Environ.</button>
+    <button class="tab" onclick="tab('scb',this)">Scuba</button>
+    <button class="tab" onclick="tab('frd',this)">Freedive</button>
+    <button class="tab" onclick="tab('diag',this)">Diag.</button>
+  </div>
+
+  <!-- DIVE LOG -->
+  <div id="dl" class="sec active">
+    <div class="card">
+      <div class="ctitle">Download Dive Logs</div>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.6">
+        Automatically scans all 16 dive slots, finds unsynced dives and downloads the full depth profile for each one.
+      </p>
+      <button class="dlbtn" id="dlBtn" onclick="downloadAll()">⬇ Download All Unsynced Dives</button>
+      <div id="dlProg" style="display:none">
+        <div class="pwrap"><div class="pbar" id="pbar"></div></div>
+        <div class="plbl" id="plbl">Scanning...</div>
+      </div>
+      <div class="sgrid" id="sgrid"></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Saved Dives <span class="badge" id="dbadge">0</span></div>
+      <div class="erow">
+        <button class="bs" onclick="exportJSON()">Export JSON</button>
+        <button class="bs bc" onclick="exportCSV()">Export CSV</button>
+        <button class="bs bd" onclick="clearAll()">Clear All</button>
+      </div>
+      <div id="dlist"></div>
+    </div>
+  </div>
+
+  <!-- GENERAL -->
+  <div id="gen" class="sec">
+    <div class="card">
+      <div class="ctitle">System</div>
+      <span class="lbl">Default Mode</span>
+      <div class="grid" id="mG" style="margin-bottom:14px">
+        <button class="bopt" id="mode0" onclick="setMode(0,this)">Scuba</button>
+        <button class="bopt" id="mode2" onclick="setMode(2,this)">Freedive</button>
+        <button class="bopt" id="mode1" onclick="setMode(1,this)">Gauge</button>
+      </div>
+      <span class="lbl">System Time</span>
+      <div class="row">
+        <span style="flex:1;font-size:12px;color:var(--dim)">Sync clock to phone time</span>
+        <button class="bs" onclick="setTime()">Sync Now</button>
+      </div>
+      <span class="lbl">Units</span>
+      <div class="grid" id="uG" style="margin-bottom:14px">
+        <button class="bopt" id="unit1" onclick="setUnits(1)">Metric</button>
+        <button class="bopt" id="unit0" onclick="setUnits(0)">Imperial</button>
+      </div>
+      <span class="lbl">Date Display</span>
+      <div class="grid" id="dG">
+        <button class="bopt" id="date0" onclick="setDate(0)">Current Date</button>
+        <button class="bopt" id="date1" onclick="setDate(1)">Last Dive</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Display & Power</div>
+      <span class="lbl">Screen Timeout</span>
+      <div class="row">
+        <select id="toSel" style="flex:1">
+          <option value="5">5 s</option><option value="10">10 s</option>
+          <option value="15">15 s</option><option value="20">20 s</option>
+          <option value="30">30 s</option><option value="60">1 min</option>
+          <option value="120">2 min</option>
+        </select>
+        <button class="bs" onclick="setTO()">Set</button>
+      </div>
+      <span class="lbl">Backlight</span>
+      <div class="grid" id="blG" style="margin-bottom:14px">
+        <button class="bopt" id="bl3" onclick="setBL(3)">1</button>
+        <button class="bopt" id="bl4" onclick="setBL(4)">2</button>
+        <button class="bopt" id="bl5" onclick="setBL(5)">3</button>
+        <button class="bopt" id="bl6" onclick="setBL(6)">4</button>
+        <button class="bopt" id="bl7" onclick="setBL(7)">5</button>
+      </div>
+      <span class="lbl">Power-Saving Mode</span>
+      <div class="grid" id="ecoG">
+        <button class="bopt" id="ecoOn" onclick="setEco(true)">On</button>
+        <button class="bopt" id="ecoOff" onclick="setEco(false)">Off</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENVIRONMENT -->
+  <div id="env" class="sec">
+    <div class="card">
+      <div class="ctitle">Diving Environment</div>
+      <span class="lbl">Water / Altitude Mode</span>
+      <div class="grid" id="envG">
+        <button class="bopt" id="env0" onclick="setEnv(0)">Normal / Sea</button>
+        <button class="bopt" id="env1" onclick="setEnv(1)">High Salinity</button>
+        <button class="bopt" id="env2" onclick="setEnv(2)">Altitude &gt;300m</button>
+      </div>
+      <div id="salWarn" class="warnbox">⚠️ Only use in highly saline water.</div>
+    </div>
+  </div>
+
+  <!-- SCUBA -->
+  <div id="scb" class="sec">
+    <div class="card">
+      <div class="ctitle">Safety</div>
+      <span class="lbl">Safety Factor</span>
+      <div class="grid" id="sfG" style="margin-bottom:14px">
+        <button class="bopt" id="safe0" onclick="setSafe(0,this)">Consv</button>
+        <button class="bopt" id="safe1" onclick="setSafe(1,this)">Norm</button>
+        <button class="bopt" id="safe2" onclick="setSafe(2,this)">Prog</button>
+      </div>
+      <span class="lbl">Max PPO2</span>
+      <div class="row">
+        <input type="range" id="pR" min="1.2" max="1.6" step="0.1" value="1.4" oninput="upd('pV',this.value)"/>
+        <span class="val" id="pV">1.4</span>
+        <button class="bs" onclick="setPPO2()">Set</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Gas</div>
+      <span class="lbl">Air Mix (O2 %)</span>
+      <div class="row">
+        <input type="range" id="aR" min="21" max="40" step="1" value="21" oninput="upd('aV',this.value+'%')"/>
+        <span class="val" id="aV">--</span>
+        <button class="bs" onclick="setAir()">Set</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Alarms</div>
+      <div class="row">
+        <span style="font-size:13px;flex:1">Depth (m)</span>
+        <input type="number" id="sdep" placeholder="--"/>
+        <button class="bs" onclick="setSDepth()">Set</button>
+      </div>
+      <div class="row" style="margin-bottom:0">
+        <span style="font-size:13px;flex:1">Time (min)</span>
+        <input type="number" id="stim" placeholder="--"/>
+        <button class="bs" onclick="setSTime()">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FREEDIVE -->
+  <div id="frd" class="sec">
+    <div class="card">
+      <div class="ctitle">Alarms</div>
+      <span class="lbl">Max Time (Seconds)</span>
+      <div class="row" style="margin-bottom:18px">
+        <input type="range" id="ftR" min="30" max="600" step="5" value="60" oninput="upd('ftV',this.value+'s')"/>
+        <span class="val" id="ftV">--</span>
+        <button class="bs" onclick="setFDT()">Set</button>
+      </div>
+      <span class="lbl">Depth Alarms (m)</span>
+      <div id="fdA"></div>
+    </div>
+  </div>
+
+  <!-- DIAGNOSTICS -->
+  <div id="diag" class="sec">
+    <div class="card">
+      <div class="ctitle">Raw Memory</div>
+      <button class="bs bp" style="width:100%;margin-bottom:12px" onclick="readSettings()">Refetch All Settings</button>
+      <div id="htbl"><div class="empty"><span class="ico">🔍</span><p>No data yet</p></div></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Time Sync Tester</div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6">
+        Try different time command formats to find the one the watch accepts. Check log for REJECTED or a valid response.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="bs" onclick="tryTimeFormat(1)">Format A: year-2000, mo, dy, hr, mn, sc (len=06)</button>
+        <button class="bs" onclick="tryTimeFormat(2)">Format B: yr_lo, yr_hi, mo, dy, hr, mn, sc (len=07)</button>
+        <button class="bs" onclick="tryTimeFormat(3)">Format C: yr_lo, yr_hi, dy, mo, mn, hr, sc (len=07)</button>
+        <button class="bs" onclick="tryTimeFormat(4)">Format D: yr_lo, yr_hi, dy, mo, hr, mn, sc (len=07)</button>
+        <button class="bs" onclick="tryTimeFormat(5)">Format E: sc, mn, hr, dy, mo, yr_lo, yr_hi (reversed)</button>
+        <div style="border-top:1px solid var(--bdr);padding-top:8px;font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px">8-BYTE VARIANTS</div>
+        <button class="bs" onclick="tryTimeFormat(6)">Format F: year-2000, mo, dy, hr, mn, sc, 00, 00 (len=08)</button>
+        <button class="bs" onclick="tryTimeFormat(7)">Format G: yr_lo, yr_hi, mo, dy, hr, mn, sc, 00 (len=08)</button>
+        <button class="bs" onclick="tryTimeFormat(8)">Format H: yr_lo, yr_hi, dy, mo, hr, mn, sc, 00 (len=08)</button>
+        <div style="border-top:1px solid var(--bdr);padding-top:8px;font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px">QUERY-FIRST (CHALLENGE-RESPONSE)</div>
+        <button class="bs bp" onclick="tryTimeQueryFirst()">Query 0x58 first, then write time (Format A)</button>
+        <button class="bs bp" onclick="tryTimeQueryFirst2()">Query 0x58 first, then write time (Format F 8-byte)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIVE DETAIL MODAL -->
+<div class="modal-overlay" id="diveModal" onclick="closeModal(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-handle"></div>
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="modalTitle">Dive Detail</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px" id="modalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Cover photo -->
+      <div id="modalCoverWrap" style="margin:-0px -16px 12px;border-radius:12px 12px 0 0;overflow:hidden"></div>
+      <div class="detail-chart-wrap">
+        <canvas id="detailCanvas" width="600" height="140"></canvas>
+        <div class="chart-label" id="chartLabel"></div>
+      </div>
+      <div class="detail-stats">
+        <div class="dstat"><div class="dstat-val" id="ds-depth">--</div><div class="dstat-unit">m</div><div class="dstat-lbl">Max Depth</div></div>
+        <div class="dstat"><div class="dstat-val" id="ds-dur">--</div><div class="dstat-unit">min</div><div class="dstat-lbl">Duration</div></div>
+        <div class="dstat"><div class="dstat-val" id="ds-avgd">--</div><div class="dstat-unit">m</div><div class="dstat-lbl">Avg Depth</div></div>
+        <div class="dstat"><div class="dstat-val" id="ds-temp">--</div><div class="dstat-unit">°C</div><div class="dstat-lbl">Min Temp</div></div>
+      </div>
+      <div class="star-row" id="starRow"></div>
+      <div class="edit-section">
+        <div class="edit-section-title">Dive Site</div>
+        <div class="edit-row"><span class="edit-label">Location</span><input class="edit-input" id="ei-loc" placeholder="e.g. Long Dong Bay"/></div>
+        <div class="edit-row"><span class="edit-label">Country</span><input class="edit-input" id="ei-country" placeholder="e.g. Taiwan"/></div>
+        <div class="edit-row">
+          <span class="edit-label">Dive Type</span>
+          <div class="type-toggle">
+            <button class="type-btn active" id="tb-scuba" onclick="setDiveType('scuba')">🤿 Scuba</button>
+            <button class="type-btn" id="tb-free" onclick="setDiveType('freedive')">🧜 Freedive</button>
+          </div>
+        </div>
+        <div class="edit-row">
+          <span class="edit-label">Purpose</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="purpose" data-val="fun" onclick="toggleOpt(this)">Fun</button>
+            <button class="iopt" data-group="purpose" data-val="training" onclick="toggleOpt(this)">Train</button>
+            <button class="iopt" data-group="purpose" data-val="photography" onclick="toggleOpt(this)">Photo</button>
+            <button class="iopt" data-group="purpose" data-val="research" onclick="toggleOpt(this)">Research</button>
+          </div>
+        </div>
+        <div class="edit-row">
+          <span class="edit-label">Features</span>
+          <div class="conditions-tag">
+            <button class="ctag" data-group="features" data-val="reef" onclick="toggleTag(this)">🪸 Reef</button>
+            <button class="ctag" data-group="features" data-val="wreck" onclick="toggleTag(this)">⚓ Wreck</button>
+            <button class="ctag" data-group="features" data-val="wall" onclick="toggleTag(this)">🪨 Wall</button>
+            <button class="ctag" data-group="features" data-val="cave" onclick="toggleTag(this)">🕳️ Cave</button>
+            <button class="ctag" data-group="features" data-val="drift" onclick="toggleTag(this)">🌊 Drift</button>
+            <button class="ctag" data-group="features" data-val="night" onclick="toggleTag(this)">🌙 Night</button>
+          </div>
+        </div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-title">Conditions</div>
+        <div class="edit-row">
+          <span class="edit-label">Weather</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="weather" data-val="0" onclick="setOpt(this)">☀️</button>
+            <button class="iopt" data-group="weather" data-val="1" onclick="setOpt(this)">⛅</button>
+            <button class="iopt" data-group="weather" data-val="2" onclick="setOpt(this)">🌧️</button>
+            <button class="iopt" data-group="weather" data-val="3" onclick="setOpt(this)">🌙</button>
+          </div>
+        </div>
+        <div class="edit-row"><span class="edit-label">Air Temp</span><input class="edit-input" id="ei-airtemp" type="number" placeholder="--" style="width:70px;flex:none"/><span style="font-size:12px;color:var(--dim);margin-left:4px">°C</span></div>
+        <div class="edit-row">
+          <span class="edit-label">Waves</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="waves" data-val="0" onclick="setOpt(this)">0m</button>
+            <button class="iopt" data-group="waves" data-val="1" onclick="setOpt(this)">0.5m</button>
+            <button class="iopt" data-group="waves" data-val="2" onclick="setOpt(this)">1m</button>
+            <button class="iopt" data-group="waves" data-val="3" onclick="setOpt(this)">1.5m+</button>
+          </div>
+        </div>
+        <div class="edit-row">
+          <span class="edit-label">Current</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="current" data-val="0" onclick="setOpt(this)">None</button>
+            <button class="iopt" data-group="current" data-val="1" onclick="setOpt(this)">Light</button>
+            <button class="iopt" data-group="current" data-val="2" onclick="setOpt(this)">Med</button>
+            <button class="iopt" data-group="current" data-val="3" onclick="setOpt(this)">Strong</button>
+          </div>
+        </div>
+        <div class="edit-row">
+          <span class="edit-label">Visibility</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="vis" data-val="0" onclick="setOpt(this)">&lt;5m</button>
+            <button class="iopt" data-group="vis" data-val="1" onclick="setOpt(this)">10m</button>
+            <button class="iopt" data-group="vis" data-val="2" onclick="setOpt(this)">20m</button>
+            <button class="iopt" data-group="vis" data-val="3" onclick="setOpt(this)">&gt;30m</button>
+          </div>
+        </div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-title">Gear</div>
+        <div class="edit-row"><span class="edit-label">Air Mix</span><input class="edit-input" id="ei-airmix" type="number" placeholder="21" style="width:70px;flex:none"/><span style="font-size:12px;color:var(--dim);margin-left:4px">% O₂</span></div>
+        <div class="edit-row"><span class="edit-label">Start Bar</span><input class="edit-input" id="ei-startbar" type="number" placeholder="200" style="width:80px;flex:none"/><span style="font-size:12px;color:var(--dim);margin-left:4px">bar</span></div>
+        <div class="edit-row"><span class="edit-label">End Bar</span><input class="edit-input" id="ei-endbar" type="number" placeholder="50" style="width:80px;flex:none"/><span style="font-size:12px;color:var(--dim);margin-left:4px">bar</span></div>
+        <div class="edit-row">
+          <span class="edit-label">Suit</span>
+          <div class="icon-opts">
+            <button class="iopt" data-group="suit" data-val="0" onclick="setOpt(this)">Swim</button>
+            <button class="iopt" data-group="suit" data-val="1" onclick="setOpt(this)">Short</button>
+            <button class="iopt" data-group="suit" data-val="2" onclick="setOpt(this)">Wet</button>
+            <button class="iopt" data-group="suit" data-val="3" onclick="setOpt(this)">Dry</button>
+          </div>
+        </div>
+        <div class="edit-row"><span class="edit-label">Thickness</span><input class="edit-input" id="ei-thick" type="number" placeholder="3" style="width:70px;flex:none"/><span style="font-size:12px;color:var(--dim);margin-left:4px">mm</span></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-title">Notes</div>
+        <textarea class="edit-input" id="ei-notes" placeholder="What did you see? How was the dive?"></textarea>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-title">Photos</div>
+        <p style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">
+          Photos are placed on the depth chart based on their timestamp. Tap a photo to view or set as cover.
+        </p>
+        <div class="photo-strip" id="photoStrip">
+          <div class="photo-add-btn" onclick="document.getElementById('photoInput').click()">＋</div>
+        </div>
+      </div>
+      <button class="modal-save-btn" onclick="saveDiveEdit()">💾 Save Changes</button>
+      <button class="modal-del-btn" onclick="delCurrentDive()">Delete This Dive</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO VIEWER -->
+<div class="photo-viewer" id="photoViewer">
+  <button class="photo-viewer-close" onclick="closePhotoViewer()">✕</button>
+  <img id="pvImg" src="" alt="Dive photo"/>
+  <div class="photo-viewer-info" id="pvInfo"></div>
+  <div class="photo-viewer-actions">
+    <button class="pv-btn pv-set-cover" onclick="setAsCover()">🖼️ Set as Cover</button>
+    <button class="pv-btn pv-delete" onclick="deleteCurrentPhoto()">🗑️ Delete</button>
+  </div>
+</div>
+<input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this)"/>
+
+<div id="logbox">Waiting for connection...</div>
+
+<script>
+// ═══════ CONFIG ═══════
+const SVC="6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const SURF=1013; // mbar surface pressure
+const MN=["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const TOM={5:5,10:10,15:15,20:20,30:1,60:2,120:3};
+
+// ═══════ STATE ═══════
+let dev,tx,rx,memMap={},sys={bl:5,eco:true};
+let diveResolve=null,diveBuf=[],diveTimer=null,inDiveDownload=false;
+let dives=JSON.parse(localStorage.getItem('cq_dives')||'[]');
+// Track which dive indices we've already downloaded (watch slot status never changes)
+let downloadedIdx=new Set(JSON.parse(localStorage.getItem('cq_dl_idx')||'[]'));
+
+// Init FD alarms
+const fa=document.getElementById("fdA");
+for(let i=1;i<=6;i++)
+  fa.innerHTML+=`<div class="row" style="margin-bottom:8px"><span style="font-size:12px;flex:1">Alarm ${i}</span><input type="number" id="fd${i}" placeholder="--"><button class="bs" onclick="setFDA(${i})">Set</button></div>`;
+renderDives();
+
+// ═══════ TABS ═══════
+function tab(id,btn){
+  document.querySelectorAll(".sec").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  if(btn)btn.classList.add("active");
+}
+function upd(id,v){document.getElementById(id).innerText=v}
+
+// ═══════ BLE ═══════
+async function doConnect(){
+  try{
+    log("Scanning...");
+    dev=await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:"COS"},{namePrefix:"Deep"}],
+      optionalServices:[SVC]
+    });
+    dev.addEventListener("gattserverdisconnected",onDisc);
+    const srv=await dev.gatt.connect();
+    const svc=await srv.getPrimaryService(SVC);
+    const cs=await svc.getCharacteristics();
+    for(const c of cs){
+      if(c.properties.write||c.properties.writeWithoutResponse)tx=c;
+      if(c.properties.notify)rx=c;
+    }
+    await rx.startNotifications();
+    rx.addEventListener("characteristicvaluechanged",onRX);
+    document.getElementById("pill").classList.add("on");
+    document.getElementById("pillTxt").textContent="Connected — "+(dev.name||"COSMIQ+");
+    document.getElementById("conBtn").style.display="none";
+    document.getElementById("disBtn").style.display="block";
+    document.getElementById("app").style.display="block";
+    log("Connected!","li");
+    await readSettings();
+  }catch(e){log("Error: "+e,"le")}
+}
+function doDisconnect(){if(dev&&dev.gatt.connected)dev.gatt.disconnect()}
+function onDisc(){
+  document.getElementById("pill").classList.remove("on");
+  document.getElementById("pillTxt").textContent="Disconnected";
+  document.getElementById("conBtn").style.display="block";
+  document.getElementById("disBtn").style.display="none";
+  document.getElementById("app").style.display="none";
+  log("Disconnected.");
+}
+
+// ═══════ RX ═══════
+// Targeted slot listener: set this to expect a specific cmd byte
+let slotListener=null; // {expectedCmd, resolve}
+
+function onRX(evt){
+  try{
+    const dec=new TextDecoder("utf-8");
+    const text=dec.decode(evt.target.value);
+    const hex=text.replace(/[^0-9A-Fa-f]/g,"").toUpperCase();
+    log("RX: "+text.trim(),"lr");
+    if(hex.length<4)return;
+    if(hex.startsWith("80")){log("REJECTED","le");return}
+    const cmd=hex.substr(0,2);
+    memMap[cmd]=hex;
+    parseSettings(cmd,hex);
+    updateHunter();
+    // During dive download: collect ALL packets regardless of type
+    if(inDiveDownload){
+      diveBuf.push(hex);
+      clearTimeout(diveTimer);
+      diveTimer=setTimeout(()=>{
+        if(diveResolve){
+          inDiveDownload=false;
+          const r=diveResolve;diveResolve=null;
+          r(diveBuf.splice(0));
+        }
+      },700);
+      return;
+    }
+    // Route dive data (0x42=header, 0x44=profile) outside download mode
+    if(cmd==="42"||cmd==="44"){
+      diveBuf.push(hex);
+      clearTimeout(diveTimer);
+      diveTimer=setTimeout(()=>{
+        if(diveResolve){const r=diveResolve;diveResolve=null;r(diveBuf.splice(0))}
+      },600);
+      return;
+    }
+    // Route slot status (0x21–0x30): targeted listener
+    const cmdByte=parseInt(cmd,16);
+    if(cmdByte>=0x21&&cmdByte<=0x30){
+      if(slotListener&&slotListener.expectedCmd===cmdByte){
+        const r=slotListener.resolve;
+        slotListener=null;
+        r(hex);
+      }
+      return;
+    }
+    // Catch-all for dive header/profile start
+    if(diveResolve){
+      const r=diveResolve;diveResolve=null;r([hex]);
+    }
+  }catch(e){console.error(e)}
+}
+
+// ═══════ SEND ═══════
+async function send(str,desc){
+  if(!tx)return;
+  await tx.writeValue(new TextEncoder().encode(str+"\n"));
+  log("TX: "+(desc||str),"lt");
+}
+async function sendCS(pfx,tgt,val,len="02",desc=""){
+  const v=val.toLowerCase(),p=pfx.toLowerCase();
+  const pb=[parseInt(len,16)];
+  for(let i=0;i<v.length;i+=2)pb.push(parseInt(v.substr(i,2),16));
+  const s=pb.reduce((a,b)=>a+b,0);
+  const ck=((tgt-s)&0xff).toString(16).padStart(2,"0");
+  await send(`#${p}${ck}${len}${v}`,desc);
+}
+function bq(cmd){return '#'+h2(cmd)+h2((0xFE-cmd)&0xFF)+'0200'}
+function bq1(cmd,pay){return '#'+h2(cmd)+h2((0x100-cmd-0x02-pay)&0xFF)+'02'+h2(pay)}
+function h2(n){return n.toString(16).padStart(2,'0')}
+
+// Query a single slot (0x21–0x30) with targeted response matching
+function querySlot(slot){
+  return new Promise(resolve=>{
+    slotListener={expectedCmd:slot, resolve};
+    send(bq(slot));
+    // Timeout: if no response in 1.2s, resolve null
+    setTimeout(()=>{
+      if(slotListener&&slotListener.expectedCmd===slot){
+        slotListener=null;
+        resolve(null);
+      }
+    },1200);
+  });
+}
+
+// Wait for streaming response (sets inDiveDownload=true to capture all packets)
+function waitResp(ms=10000){
+  return new Promise(r=>{
+    diveBuf=[];
+    inDiveDownload=true;
+    diveResolve=r;
+    setTimeout(()=>{
+      if(diveResolve){
+        inDiveDownload=false;
+        diveResolve=null;
+        r(diveBuf.splice(0));
+      }
+    },ms);
+  });
+}
+
+// ═══════ DIVE DOWNLOAD PROTOCOL ═══════
+async function downloadAll(){
+  if(!tx){alert("Not connected!");return}
+  const btn=document.getElementById("dlBtn");
+  btn.disabled=true;
+  document.getElementById("dlProg").style.display="block";
+  prog(0,"Scanning dive slots...");
+  const grid=document.getElementById("sgrid");
+  grid.innerHTML="";
+
+  // Scan 0x21–0x3F (30 dive slots — COSMIQ+ max capacity)
+  const toDownload=[];
+  for(let slot=0x21;slot<=0x3F;slot++){
+    const cell=document.createElement("div");
+    cell.className="sc";cell.textContent=h2(slot).toUpperCase();
+    grid.appendChild(cell);
+    prog(((slot-0x21)/30)*40,"Scanning 0x"+h2(slot).toUpperCase()+"...");
+    const resp=await querySlot(slot);
+    await sleep(150);
+    if(resp&&resp.length>=8){
+      const idx=slot-0x20;
+      // Download ALL slots not yet downloaded (ignore status byte)
+      if(!downloadedIdx.has(idx)){
+        toDownload.push(idx);
+        cell.className="sc new";
+        cell.title="Not yet downloaded";
+      } else {
+        cell.className="sc old";
+        cell.title="Already downloaded";
+      }
+    } else {
+      cell.className="sc old"; // no response = empty slot
+    }
+  }
+
+  if(toDownload.length===0){
+    prog(100,"No new dives found. All dives already synced.");
+    btn.disabled=false;return;
+  }
+  log("Found "+toDownload.length+" unsynced dive(s)","li");
+
+  // Helper: arm capture BEFORE sending command
+  async function capture(cmd,timeoutMs){
+    clearTimeout(diveTimer);
+    diveBuf=[];inDiveDownload=true;
+    const p=new Promise(r=>{
+      diveResolve=r;
+      setTimeout(()=>{if(diveResolve){inDiveDownload=false;diveResolve=null;r(diveBuf.splice(0))}},timeoutMs);
+    });
+    await send(cmd);
+    return p;
+  }
+
+  // ── PHASE 1: Download all profiles automatically ──
+  prog(40,`Downloading ${toDownload.length} dive(s)...`);
+  const savedIds=[];
+
+  for(let i=0;i<toDownload.length;i++){
+    const idx=toDownload[i];
+
+    // 7s rest between dives so watch can recover
+    if(i>0){
+      for(let s=7;s>0;s--){
+        prog(40+((i/toDownload.length)*30),
+          `Dive ${i+1}/${toDownload.length} — watch recovering... ${s}s`);
+        await sleep(1000);
+        if(!tx||!dev||!dev.gatt.connected){
+          log("Watch disconnected during recovery wait","le");
+          break;
+        }
+      }
+    }
+    if(!tx||!dev||!dev.gatt.connected){
+      log("Watch disconnected — stopping download","le");
+      break;
+    }
+
+    prog(40+((i/toDownload.length)*30),`Downloading profile ${i+1}/${toDownload.length}...`);
+    await sleep(1000);
+    const pPkts=await capture(bq1(0x43,idx),12000);
+    await sleep(2000);
+    const profile=parsePrf(pPkts);
+
+    if(profile.depths.length>0){
+      const id=Date.now()+i;
+      savedIds.push({id,idx});
+      const d={id,savedAt:new Date().toISOString(),diveIndex:idx,
+        date:"Unknown",dateDisplay:"Unknown",timeDisplay:"--:--",...profile};
+      dives.push(d);
+      downloadedIdx.add(idx);
+      localStorage.setItem('cq_dives',JSON.stringify(dives));
+      localStorage.setItem('cq_dl_idx',JSON.stringify([...downloadedIdx]));
+      renderDives();
+      log(`Profile ${i+1}: max ${profile.maxDepth}m ${profile.duration}min ${profile.minTemp}°C`,"li");
+    } else {
+      log(`Profile ${i+1}: no data received, skipping`,"li");
+    }
+  }
+
+  prog(72,`${savedIds.length} profile(s) saved. Resting 10s before fetching dates...`);
+  await sleep(10000);
+
+  // ── PHASE 2: Fetch dates for all saved dives ──
+  prog(74,"Fetching dates...");
+  for(let i=0;i<savedIds.length;i++){
+    const {id,idx}=savedIds[i];
+    if(!tx||!dev||!dev.gatt.connected){log("Watch disconnected — skipping dates","le");break;}
+    if(i>0) await sleep(5000);
+    prog(74+((i/savedIds.length)*24),`Date ${i+1}/${savedIds.length}...`);
+    const hPkts=await capture(bq1(0x41,idx),6000);
+    await sleep(1500);
+    const header=parseHdr(hPkts);
+    if(header.date!=="Unknown"){
+      const dive=dives.find(d=>d.id===id);
+      if(dive){Object.assign(dive,header);localStorage.setItem('cq_dives',JSON.stringify(dives));renderDives();}
+      log(`Date ${i+1}: ${header.dateDisplay} ${header.timeDisplay}`,"li");
+    } else {
+      log(`Date ${i+1}: no response`,"li");
+    }
+  }
+
+  renderDives();
+  prog(100,`Done! ${savedIds.length} dive(s) downloaded.`);
+  updateDlBtn(0);
+  btn.disabled=false;
+}
+
+function prog(pct,lbl){
+  document.getElementById("pbar").style.width=pct+"%";
+  document.getElementById("plbl").textContent=lbl;
+}
+
+function updateDlBtn(remaining){
+  const btn=document.getElementById("dlBtn");
+  btn.disabled=false;
+  if(remaining>0){
+    btn.innerHTML=`⬇ Download Next Dive <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px;font-size:12px">${remaining} left</span>`;
+  } else {
+    btn.innerHTML="⬇ Download All Unsynced Dives";
+  }
+}
+
+// ── Parse date/time from 0x42 header packets ──
+// Layout of 36-byte header block:
+// [0-5]:  flags/type
+// [6-7]:  year LE (e.g. 0x07EA=2026)
+// [8]:    day
+// [9]:    month
+// [10]:   minute
+// [11]:   hour
+// [12+]:  duration, depth summary, temp summary
+function parseHdr(pkts){
+  const b=[];
+  for(const p of pkts){
+    if(p.startsWith("42")&&p.length>=10)
+      for(let i=6;i+1<p.length;i+=2)b.push(parseInt(p.substr(i,2),16));
+  }
+  if(b.length<12)return{date:"Unknown",dateDisplay:"Unknown",timeDisplay:"--:--"};
+  const yr=(b[6]||0)|((b[7]||0)<<8);
+  const dy=b[8]||0, mo=b[9]||0;
+  const mn=b[10]||0, hr=b[11]||0;
+  // Validate parsed values
+  if(yr<2015||yr>2035||mo<1||mo>12||dy<1||dy>31||hr>23||mn>59)
+    return{date:"Unknown",dateDisplay:"Unknown",timeDisplay:"--:--"};
+  const date=`${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+  const dateDisplay=`${dy} ${MN[mo]||''} ${yr}`;
+  const timeDisplay=`${String(hr).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+  return{date,dateDisplay,timeDisplay};
+}
+
+// ── Parse profile from 0x44 packets ──
+// Auto-detects whether pressure or temperature comes first in the stream.
+// Pressure (mbar): ~900–5000 (surface=1013, 10m≈2013, 30m≈4013)
+// Temperature (×0.1 °C): ~200–350 for tropical (20–35°C), never >500
+function parsePrf(pkts){
+  const vals=[];
+  for(const p of pkts){
+    if(p.startsWith("44")&&p.length>=10){
+      for(let i=6;i+3<=p.length;i+=4){
+        const lo=parseInt(p.substr(i,2),16),hi=parseInt(p.substr(i+2,2),16);
+        vals.push(lo|(hi<<8));
+      }
+    }
+  }
+  if(vals.length<2)return{depths:[],temps:[],samples:[],maxDepth:"--",minTemp:"--",avgTemp:"--",duration:"--"};
+
+  // Auto-detect: temperature values should be 100–450 (10–45°C × 10)
+  // Pressure values should be 800–6000 (deep ocean to surface)
+  // Sample first even vs odd values to guess which is which
+  const evenSample=vals.filter((_,i)=>i%2===0).slice(0,10);
+  const oddSample=vals.filter((_,i)=>i%2===1).slice(0,10);
+  const isTemp=v=>v>=100&&v<=500; // 10–50°C × 10
+  const isPressure=v=>v>=800&&v<=6000;
+  const evenTempLike=evenSample.filter(isTemp).length;
+  const oddTempLike=oddSample.filter(isTemp).length;
+  // If more even-indexed values look like temp → even=temp (pressureFirst=false)
+  // If more odd-indexed values look like temp → odd=temp (pressureFirst=true)
+  const pressureFirst = oddTempLike > evenTempLike;
+
+  const depths=[],temps=[],samples=[];
+  for(let i=0;i+1<vals.length;i+=2){
+    const rawA=vals[i], rawB=vals[i+1];
+    const pressureRaw=pressureFirst?rawA:rawB;
+    const tempRaw=pressureFirst?rawB:rawA;
+    // Depth from pressure
+    const depth=Math.max(0,(pressureRaw-SURF)/100);
+    // Temperature: ×0.1 gives °C
+    const temp=tempRaw/10;
+    // Sanity check: skip obviously bad samples
+    if(temp<0||temp>50||depth>200)continue;
+    depths.push(parseFloat(depth.toFixed(1)));
+    temps.push(parseFloat(temp.toFixed(1)));
+    samples.push({depth:parseFloat(depth.toFixed(1)),temp:parseFloat(temp.toFixed(1)),timeS:samples.length*20});
+  }
+  if(depths.length===0)return{depths:[],temps:[],samples:[],maxDepth:"--",minTemp:"--",avgTemp:"--",duration:"--"};
+  const maxDepth=Math.max(...depths).toFixed(1);
+  const minTemp=Math.min(...temps).toFixed(1);
+  const avgTemp=(temps.reduce((a,b)=>a+b,0)/temps.length).toFixed(1);
+  const duration=Math.round(depths.length*20/60);
+  return{depths,temps,samples,maxDepth,minTemp,avgTemp,duration};
+}
+
+// ═══════ RENDER DIVES (Deepblu style) ═══════
+function renderDives(){
+  const el=document.getElementById("dlist");
+  const badge=document.getElementById("dbadge");
+  if(badge)badge.textContent=dives.length;
+  if(dives.length===0){
+    el.innerHTML=`<div class="empty"><span class="ico">🤿</span><p>No dives downloaded yet</p><small>Connect your watch and tap Download</small></div>`;
+    return;
+  }
+  el.innerHTML=[...dives].reverse().map((d,ri)=>{
+    const num=dives.length-ri;
+    const isFreedive=d.diveType==='freedive';
+    const locLine=d.location?`<div class="dive-loc">📍 ${d.location}${d.country?', '+d.country:''}</div>`:'';
+    const stars=d.rating?'⭐'.repeat(d.rating):'';
+    const photos=getDivePhotos(d.id);
+    const cover=photos.find(p=>String(p.id)===String(d.coverPhotoId))||photos[0];
+    const coverHtml=cover
+      ?`<img class="cover-photo" src="${cover.base64}" style="height:120px"/>`
+      :'';
+    return`<div class="dive-card" onclick="openDiveDetail(${d.id})">
+      ${coverHtml}
+      <div class="dive-card-header">
+        <div class="dive-card-left">
+          <div class="dive-num">DIVE #${num} ${stars}</div>
+          <div class="dive-date">${d.dateDisplay||d.date||'Unknown'}</div>
+          <div class="dive-time">${d.timeDisplay||'--:--'}</div>
+          ${locLine}
+        </div>
+        <span class="dive-type-badge${isFreedive?' free':''}">${isFreedive?'FREEDIVE':'SCUBA'}</span>
+      </div>
+      <div class="dive-stats-row">
+        <div class="dive-stat"><div class="dive-stat-val">${d.maxDepth}</div><div class="dive-stat-unit">m</div><div class="dive-stat-lbl">Max Depth</div></div>
+        <div class="dive-stat"><div class="dive-stat-val">${d.duration}</div><div class="dive-stat-unit">min</div><div class="dive-stat-lbl">Duration</div></div>
+        <div class="dive-stat"><div class="dive-stat-val">${d.minTemp}</div><div class="dive-stat-unit">°C</div><div class="dive-stat-lbl">Min Temp</div></div>
+      </div>
+      ${d.depths&&d.depths.length>0?`<div class="dive-chart-wrap"><canvas id="c${d.id}" width="600" height="60"></canvas></div>`:''}
+    </div>`;
+  }).join('');
+  dives.forEach(d=>{
+    if(d.depths&&d.depths.length>0){
+      const c=document.getElementById("c"+d.id);
+      if(c)drawMiniChart(c,d.depths);
+    }
+  });
+}
+
+function drawMiniChart(c,dp){
+  const ctx=c.getContext("2d"),W=c.width,H=c.height;
+  const mx=Math.max(...dp,1);
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"rgba(0,196,180,.15)");bg.addColorStop(1,"rgba(0,196,180,.0)");
+  ctx.fillStyle=bg;
+  ctx.beginPath();ctx.moveTo(0,H);
+  dp.forEach((v,i)=>{const x=(i/Math.max(dp.length-1,1))*W,y=(v/mx)*(H-3)+1;ctx.lineTo(x,y)});
+  ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.strokeStyle="rgba(0,196,180,.8)";ctx.lineWidth=1.5;
+  dp.forEach((v,i)=>{const x=(i/Math.max(dp.length-1,1))*W,y=(v/mx)*(H-3)+1;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.stroke();
+}
+
+function drawDetailChart(c,dp,tp){
+  const ctx=c.getContext("2d"),W=c.width,H=c.height;
+  const mx=Math.max(...dp,1);
+  // Background gradient
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"rgba(0,196,180,.25)");bg.addColorStop(1,"rgba(0,30,60,.0)");
+  ctx.fillStyle=bg;
+  ctx.beginPath();ctx.moveTo(0,H);
+  dp.forEach((v,i)=>{const x=(i/Math.max(dp.length-1,1))*W,y=(v/mx)*(H-16)+6;ctx.lineTo(x,y)});
+  ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+  // Depth line
+  ctx.beginPath();ctx.strokeStyle="rgba(0,220,200,1)";ctx.lineWidth=2;
+  dp.forEach((v,i)=>{const x=(i/Math.max(dp.length-1,1))*W,y=(v/mx)*(H-16)+6;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.stroke();
+  // Depth grid lines
+  ctx.strokeStyle="rgba(255,255,255,.05)";ctx.lineWidth=1;
+  [0.25,0.5,0.75].forEach(f=>{const y=f*(H-16)+6;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()});
+  // Max depth label
+  const maxIdx=dp.indexOf(Math.max(...dp));
+  const mx2=Math.max(...dp,1);
+  ctx.fillStyle="rgba(0,220,200,.9)";ctx.font="bold 10px monospace";
+  const lx=(maxIdx/Math.max(dp.length-1,1))*W;
+  const ly=(mx2/mx2)*(H-16)+6-6;
+  ctx.fillText(mx2+"m",Math.min(lx,W-30),Math.max(ly,12));
+}
+
+// ═══════ MODAL ═══════
+let currentDiveId=null;
+let modalEdits={}; // temp edits before save
+
+function openDiveDetail(id){
+  const d=dives.find(x=>x.id===id);
+  if(!d)return;
+  currentDiveId=id;
+  modalEdits={};
+
+  // Header
+  document.getElementById("modalTitle").textContent=d.dateDisplay||d.date||"Unknown Date";
+  document.getElementById("modalSub").textContent=(d.timeDisplay||'')+(d.location?' · '+d.location:'');
+
+  // Stats
+  document.getElementById("ds-depth").textContent=d.maxDepth||"--";
+  document.getElementById("ds-dur").textContent=d.duration||"--";
+  const avgD=d.depths&&d.depths.length>0?(d.depths.reduce((a,b)=>a+b,0)/d.depths.length).toFixed(1):"--";
+  document.getElementById("ds-avgd").textContent=avgD;
+  document.getElementById("ds-temp").textContent=d.minTemp||"--";
+  document.getElementById("chartLabel").textContent=`${d.duration||'?'}min · ${d.depths?d.depths.length:0} samples`;
+
+  // Stars
+  const starRow=document.getElementById("starRow");
+  starRow.innerHTML=[1,2,3,4,5].map(n=>`<button class="star-btn${(d.rating||0)>=n?' on':''}" onclick="setRating(${n})">${n<=5?'★':''}</button>`).join('');
+
+  // Populate fields
+  document.getElementById("ei-loc").value=d.location||'';
+  document.getElementById("ei-country").value=d.country||'';
+  document.getElementById("ei-airtemp").value=d.airTemp||'';
+  document.getElementById("ei-airmix").value=d.airMix||'';
+  document.getElementById("ei-startbar").value=d.startBar||'';
+  document.getElementById("ei-endbar").value=d.endBar||'';
+  document.getElementById("ei-thick").value=d.suitThickness||'';
+  document.getElementById("ei-notes").value=d.notes||'';
+
+  // Dive type
+  const isFreedive=d.diveType==='freedive';
+  document.getElementById("tb-scuba").classList.toggle("active",!isFreedive);
+  document.getElementById("tb-free").classList.toggle("active",isFreedive);
+  document.getElementById("tb-free").classList.toggle("free",isFreedive);
+
+  // Reset and restore option buttons
+  document.querySelectorAll(".iopt,.ctag").forEach(b=>b.classList.remove("active"));
+  restoreOpt("weather",d.weather);
+  restoreOpt("waves",d.waves);
+  restoreOpt("current",d.current);
+  restoreOpt("vis",d.vis);
+  restoreOpt("suit",d.suitType);
+  if(d.purpose) document.querySelectorAll(`.iopt[data-group="purpose"][data-val="${d.purpose}"]`).forEach(b=>b.classList.add("active"));
+  if(d.features) d.features.forEach(f=>document.querySelectorAll(`.ctag[data-val="${f}"]`).forEach(b=>b.classList.add("active")));
+
+  // Cover photo
+  const coverWrap=document.getElementById("modalCoverWrap");
+  const photos=getDivePhotos(id);
+  const coverPhoto=photos.find(p=>String(p.id)===String(d.coverPhotoId))||photos[0];
+  if(coverPhoto){
+    coverWrap.innerHTML=`<img src="${coverPhoto.base64}" class="cover-photo"/>`;
+  } else {
+    coverWrap.innerHTML=`<div class="cover-placeholder">🤿</div>`;
+  }
+
+  // Draw chart with photo markers (after DOM settles)
+  setTimeout(()=>renderDetailChart(d),50);
+
+  // Photo strip
+  renderPhotoStrip(id);
+  document.getElementById("diveModal").classList.add("open");
+  document.body.style.overflow="hidden";
+}
+
+function restoreOpt(group,val){
+  if(val===null||val===undefined)return;
+  document.querySelectorAll(`.iopt[data-group="${group}"][data-val="${val}"]`).forEach(b=>b.classList.add("active"));
+}
+
+function closeModal(e){
+  if(e&&e.target!==document.getElementById("diveModal"))return;
+  document.getElementById("diveModal").classList.remove("open");
+  document.body.style.overflow="";
+  currentDiveId=null;
+}
+
+function setDiveType(type){
+  const isFreedive=type==='freedive';
+  document.getElementById("tb-scuba").classList.toggle("active",!isFreedive);
+  document.getElementById("tb-free").classList.toggle("active",isFreedive);
+  document.getElementById("tb-free").classList.toggle("free",isFreedive);
+}
+
+function setRating(n){
+  const d=dives.find(x=>x.id===currentDiveId);
+  if(!d)return;
+  d.rating=n;
+  document.querySelectorAll(".star-btn").forEach((b,i)=>b.classList.toggle("on",i<n));
+}
+
+function setOpt(btn){
+  const group=btn.dataset.group,val=btn.dataset.val;
+  document.querySelectorAll(`.iopt[data-group="${group}"]`).forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+function toggleOpt(btn){
+  btn.classList.toggle("active");
+}
+
+function toggleTag(btn){
+  btn.classList.toggle("active");
+}
+
+function saveDiveEdit(){
+  const d=dives.find(x=>x.id===currentDiveId);
+  if(!d)return;
+  d.location=document.getElementById("ei-loc").value.trim();
+  d.country=document.getElementById("ei-country").value.trim();
+  d.airTemp=document.getElementById("ei-airtemp").value||null;
+  d.airMix=document.getElementById("ei-airmix").value||null;
+  d.startBar=document.getElementById("ei-startbar").value||null;
+  d.endBar=document.getElementById("ei-endbar").value||null;
+  d.suitThickness=document.getElementById("ei-thick").value||null;
+  d.notes=document.getElementById("ei-notes").value.trim();
+  d.diveType=document.getElementById("tb-free").classList.contains("active")?'freedive':'scuba';
+  const getOpt=g=>{const b=document.querySelector(`.iopt[data-group="${g}"].active`);return b?parseInt(b.dataset.val):null};
+  d.weather=getOpt("weather");d.waves=getOpt("waves");d.current=getOpt("current");d.vis=getOpt("vis");d.suitType=getOpt("suit");
+  const purpose=document.querySelector('.iopt[data-group="purpose"].active');d.purpose=purpose?purpose.dataset.val:null;
+  d.features=[...document.querySelectorAll('.ctag.active')].map(b=>b.dataset.val);
+  localStorage.setItem('cq_dives',JSON.stringify(dives));
+  renderDives();
+  // Update modal subtitle
+  document.getElementById("modalSub").textContent=(d.timeDisplay||'')+(d.location?' · '+d.location:'');
+  // Flash save button
+  const btn=document.querySelector('.modal-save-btn');
+  btn.textContent='✅ Saved!';
+  setTimeout(()=>btn.textContent='💾 Save Changes',1500);
+}
+
+// ═══════ PHOTO MANAGEMENT ═══════
+let currentPhotoId=null;
+
+// Compress image to base64 (max 800px wide, 70% quality)
+function compressImage(file, maxW=800){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const ratio=Math.min(1, maxW/img.width);
+      const c=document.createElement("canvas");
+      c.width=img.width*ratio; c.height=img.height*ratio;
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg",0.70));
+    };
+    img.src=url;
+  });
+}
+
+// Read EXIF datetime from JPEG (searches binary for datetime pattern)
+function readEXIFDate(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const arr=new Uint8Array(e.target.result);
+        let str='';
+        // Scan first 64KB for EXIF datetime pattern YYYY:MM:DD HH:MM:SS
+        for(let i=0;i<Math.min(arr.length,65536);i++)str+=String.fromCharCode(arr[i]);
+        const m=str.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+        if(m){
+          const dt=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+          resolve(isNaN(dt)?null:dt);
+        } else resolve(null);
+      }catch{resolve(null);}
+    };
+    reader.readAsArrayBuffer(file.slice(0,65536));
+  });
+}
+
+// Get photos for current dive from localStorage
+function getDivePhotos(diveId){
+  try{return JSON.parse(localStorage.getItem('cq_photos_'+diveId)||'[]');}catch{return[];}
+}
+function saveDivePhotos(diveId,photos){
+  try{localStorage.setItem('cq_photos_'+diveId,JSON.stringify(photos));}
+  catch(e){
+    if(e.name==='QuotaExceededError') alert('Storage full! Please delete some photos.');
+  }
+}
+
+async function handlePhotoUpload(input){
+  const d=dives.find(x=>x.id===currentDiveId);
+  if(!d||!input.files.length)return;
+
+  // Parse dive start time
+  let diveStart=null;
+  if(d.date&&d.timeDisplay){
+    const [hr,mn]=(d.timeDisplay||'00:00').split(':').map(Number);
+    const [yr,mo,dy]=d.date.split('-').map(Number);
+    diveStart=new Date(yr,mo-1,dy,hr,mn,0);
+  }
+
+  const photos=getDivePhotos(currentDiveId);
+  const strip=document.getElementById("photoStrip");
+
+  for(const file of input.files){
+    const base64=await compressImage(file);
+    const exifDate=await readEXIFDate(file);
+
+    // Calculate time offset from dive start (seconds)
+    let offsetSeconds=null;
+    if(exifDate&&diveStart){
+      offsetSeconds=(exifDate-diveStart)/1000;
+      // Only accept photos within dive window
+      const maxSeconds=(d.depths?.length||0)*20;
+      if(offsetSeconds<0||offsetSeconds>maxSeconds+300) offsetSeconds=null;
+    }
+
+    const photo={
+      id:Date.now()+Math.random(),
+      base64,
+      filename:file.name,
+      exifDate:exifDate?exifDate.toISOString():null,
+      offsetSeconds,
+      isCover:photos.length===0 // first photo auto-becomes cover
+    };
+    photos.push(photo);
+
+    // Update dive cover if this is cover
+    if(photo.isCover){
+      d.coverPhotoId=photo.id;
+      localStorage.setItem('cq_dives',JSON.stringify(dives));
+    }
+  }
+
+  saveDivePhotos(currentDiveId,photos);
+  input.value='';
+  renderPhotoStrip(currentDiveId);
+  renderDetailChart(d);
+  renderDives(); // update card covers
+}
+
+function renderPhotoStrip(diveId){
+  const photos=getDivePhotos(diveId);
+  const strip=document.getElementById("photoStrip");
+  if(!strip)return;
+  const thumbs=photos.map(p=>`
+    <img class="photo-thumb${p.isCover?' cover':''}"
+      src="${p.base64}" onclick="openPhotoViewer('${diveId}','${p.id}')"
+      title="${p.filename+(p.offsetSeconds!=null?'\n@ '+Math.round(p.offsetSeconds/60)+'min':'')}"
+    />`).join('');
+  strip.innerHTML=thumbs+`<div class="photo-add-btn" onclick="document.getElementById('photoInput').click()">＋</div>`;
+}
+
+function openPhotoViewer(diveId,photoId){
+  const photos=getDivePhotos(diveId);
+  const p=photos.find(x=>String(x.id)===String(photoId));
+  if(!p)return;
+  currentPhotoId=photoId;
+  document.getElementById("pvImg").src=p.base64;
+  const info=p.offsetSeconds!=null?`📍 ${Math.round(p.offsetSeconds/60)} min into dive`:p.filename;
+  document.getElementById("pvInfo").textContent=info;
+  document.getElementById("photoViewer").classList.add("open");
+}
+
+function closePhotoViewer(){
+  document.getElementById("photoViewer").classList.remove("open");
+  currentPhotoId=null;
+}
+
+function setAsCover(){
+  const d=dives.find(x=>x.id===currentDiveId);
+  if(!d)return;
+  const photos=getDivePhotos(currentDiveId);
+  photos.forEach(p=>p.isCover=String(p.id)===String(currentPhotoId));
+  d.coverPhotoId=currentPhotoId;
+  saveDivePhotos(currentDiveId,photos);
+  localStorage.setItem('cq_dives',JSON.stringify(dives));
+  renderPhotoStrip(currentDiveId);
+  renderDives();
+  closePhotoViewer();
+}
+
+function deleteCurrentPhoto(){
+  if(!confirm("Delete this photo?"))return;
+  const d=dives.find(x=>x.id===currentDiveId);
+  let photos=getDivePhotos(currentDiveId);
+  photos=photos.filter(p=>String(p.id)!==String(currentPhotoId));
+  // If deleted was cover, assign to first remaining
+  if(photos.length>0&&String(d?.coverPhotoId)===String(currentPhotoId)){
+    photos[0].isCover=true;
+    if(d){d.coverPhotoId=photos[0].id;localStorage.setItem('cq_dives',JSON.stringify(dives));}
+  }
+  saveDivePhotos(currentDiveId,photos);
+  closePhotoViewer();
+  renderPhotoStrip(currentDiveId);
+  renderDetailChart(d);
+  renderDives();
+}
+
+// Draw detail chart with photo markers
+function renderDetailChart(d){
+  if(!d?.depths?.length)return;
+  const canvas=document.getElementById("detailCanvas");
+  if(!canvas)return;
+  canvas.width=canvas.parentElement.clientWidth||600;
+  canvas.height=140;
+  drawDetailChart(canvas,d.depths,d.temps);
+
+  // Draw photo markers
+  const photos=getDivePhotos(currentDiveId);
+  const totalSeconds=(d.depths.length)*20;
+  const W=canvas.width, H=canvas.height;
+  const ctx=canvas.getContext("2d");
+  const mx=Math.max(...d.depths,1);
+
+  // Build clickable marker data
+  canvas._photoMarkers=[];
+  photos.filter(p=>p.offsetSeconds!=null&&p.offsetSeconds>=0&&p.offsetSeconds<=totalSeconds).forEach(p=>{
+    const xPct=p.offsetSeconds/totalSeconds;
+    const x=xPct*W;
+    const sampleIdx=Math.round(p.offsetSeconds/20);
+    const depth=d.depths[Math.min(sampleIdx,d.depths.length-1)]||0;
+    const y=(depth/mx)*(H-16)+6;
+    // Draw dot
+    ctx.beginPath();
+    ctx.arc(x,y,6,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,196,180,0.9)';
+    ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    // Store for click
+    canvas._photoMarkers.push({x,y,photo:p});
+  });
+
+  // Add click handler
+  canvas.onclick=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const cx=(e.clientX-rect.left)*(canvas.width/rect.width);
+    const cy=(e.clientY-rect.top)*(canvas.height/rect.height);
+    const hit=canvas._photoMarkers?.find(m=>Math.hypot(m.x-cx,m.y-cy)<20);
+    if(hit) openPhotoViewer(currentDiveId,hit.photo.id);
+  };
+  canvas.style.cursor='pointer';
+}
+function clearAll(){if(!confirm("Delete all saved dives?"))return;dives=[];downloadedIdx=new Set();localStorage.removeItem('cq_dives');localStorage.removeItem('cq_dl_idx');updateDlBtn(0);renderDives()}
+function exportJSON(){if(!dives.length){alert("No dives.");return}dl('cosmiq_'+Date.now()+'.json',JSON.stringify(dives,null,2),'application/json')}
+function exportCSV(){
+  if(!dives.length){alert("No dives.");return}
+  const r=["date,time,maxDepth_m,duration_min,minTemp_c,avgTemp_c"];
+  dives.forEach(d=>r.push(`${d.date||''},${d.timeDisplay||''},${d.maxDepth},${d.duration},${d.minTemp},${d.avgTemp}`));
+  dl('cosmiq_'+Date.now()+'.csv',r.join('\n'),'text/csv');
+}
+function dl(n,c,t){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
+
+// ═══════ SETTINGS PARSERS ═══════
+function parseSettings(cmd,hex){
+  if(cmd==="5F"){
+    const e=parseInt(hex.substr(8,2),16);
+    if(!isNaN(e)&&e<=2){hi("envG","env"+e);document.getElementById("salWarn").style.display=e===1?"block":"none"}
+    const r=parseInt(hex.substr(10,2),16);
+    if(!isNaN(r)){sys.bl=r&0x0f;sys.eco=!(r&0x10);hi("blG","bl"+sys.bl);document.getElementById("ecoOn").classList.toggle("sel",sys.eco);document.getElementById("ecoOff").classList.toggle("sel",!sys.eco)}
+  }
+  if(cmd==="5C"){
+    si("sdep",(parseInt(hex.substr(6,4),16)-1000)/100);
+    si("stim",parseInt(hex.substr(10,4),16));
+    const a=parseInt(hex.substr(14,2),16);if(!isNaN(a)){document.getElementById("aR").value=a;upd("aV",a+"%")}
+    const m=parseInt(hex.substr(16,2),16);if(!isNaN(m))hi("mG","mode"+m);
+  }
+  if(cmd==="5B"){
+    const tv=parseInt(hex.substr(12,2),16),tk=Object.keys(TOM).find(k=>TOM[k]===tv);
+    if(tk)document.getElementById("toSel").value=tk;
+    const dm=parseInt(hex.substr(14,2),16);if(!isNaN(dm))hi("dG","date"+dm);
+    const um=parseInt(hex.substr(16,2),16);if(!isNaN(um))hi("uG","unit"+um);
+  }
+  if(cmd==="5D"){
+    si("fd2",parseInt(hex.substr(6,2),16)+5);si("fd1",parseInt(hex.substr(8,2),16)+5);
+    const ti=parseInt(hex.substr(12,2),16);if(!isNaN(ti)){const s=ti*5+30;si("ftR",s);upd("ftV",s+"s")}
+    const sf=parseInt(hex.substr(14,2),16);if(sf>=0&&sf<=2)hi("sfG","safe"+sf);
+    const pr=parseInt(hex.substr(16,2),16);if(!isNaN(pr)){document.getElementById("pR").value=pr/10;upd("pV",(pr/10).toFixed(1))}
+  }
+  if(cmd==="60"){
+    si("fd4",parseInt(hex.substr(6,2),16)+5);si("fd3",parseInt(hex.substr(8,2),16)+5);
+    si("fd6",parseInt(hex.substr(10,2),16)+5);si("fd5",parseInt(hex.substr(12,2),16)+5);
+  }
+}
+function hi(g,id){document.querySelectorAll("#"+g+" .bopt").forEach(b=>b.classList.remove("sel"));const e=document.getElementById(id);if(e)e.classList.add("sel")}
+function si(id,v){const e=document.getElementById(id);if(e&&!isNaN(v))e.value=v}
+
+// ═══════ SETTINGS SETTERS ═══════
+async function readSettings(){
+  for(const c of[0x58,0x5F,0x5B,0x5C,0x5D,0x60]){await send(bq(c),"Read 0x"+h2(c).toUpperCase());await sleep(300)}
+}
+function setTime(){
+  const n=new Date();
+  // Decimal-as-hex: year%100, month, day, hour, min, sec
+  // Each as 2-char decimal string (e.g. 26, 05, 06, 23, 38, 04)
+  const y=(n.getFullYear()%100).toString().padStart(2,'0');
+  const mo=(n.getMonth()+1).toString().padStart(2,'0');
+  const d=n.getDate().toString().padStart(2,'0');
+  const h=n.getHours().toString().padStart(2,'0');
+  const mn=n.getMinutes().toString().padStart(2,'0');
+  const s=n.getSeconds().toString().padStart(2,'0');
+  const payload=y+mo+d+h+mn+s; // e.g. "260506233804" — 12 chars = 6 bytes
+  log(`Time: ${payload}`,"li");
+  // CMD=20, target=224(0xE0), len=0c (12 hex chars = 6 bytes)
+  sendCS("20",224,payload,"0c","Set Time");
+}
+function setMode(m){hi("mG","mode"+m);const c=memMap["5C"]||"";sendCS("5C",0xa2,(c.length>=10?c.substr(6,4):"03e9")+(c.length>=14?c.substr(10,4):"0000")+(c.length>=16?c.substr(14,2):"15")+h2(m),"08","Set Mode")}
+function setUnits(u){hi("uG","unit"+u);const c=memMap["5B"]||"";sendCS("5B",0xa3,"00000000"+(c.length>=14?c.substr(12,2):"05")+(c.length>=16?c.substr(14,2):"00")+h2(u),"0a","Set Units")}
+function setDate(d){hi("dG","date"+d);const c=memMap["5B"]||"";sendCS("5B",0xa3,"00000000"+(c.length>=14?c.substr(12,2):"05")+h2(d)+(c.length>=18?c.substr(16,2):"01"),"0a","Set Date")}
+function setTO(){const s=parseInt(document.getElementById("toSel").value),i=TOM[s]||5;const c=memMap["5B"]||"";sendCS("5B",0xa3,"00000000"+h2(i)+(c.length>=16?c.substr(14,2):"00")+(c.length>=18?c.substr(16,2):"01"),"0a","Set Timeout")}
+function setBL(l){hi("blG","bl"+l);sys.bl=l;const c=memMap["5F"]||"",e=c.length>=10?parseInt(c.substr(8,2),16):0;sendCS("5F",0x9f,"00"+h2(e)+h2(l|(sys.eco?0:0x10)),"06","Set BL")}
+function setEco(on){sys.eco=on;document.getElementById("ecoOn").classList.toggle("sel",on);document.getElementById("ecoOff").classList.toggle("sel",!on);const c=memMap["5F"]||"",e=c.length>=10?parseInt(c.substr(8,2),16):0;sendCS("5F",0x9f,"00"+h2(e)+h2(sys.bl|(on?0:0x10)),"06","Set Eco")}
+function setEnv(e){hi("envG","env"+e);document.getElementById("salWarn").style.display=e===1?"block":"none";const c=memMap["5F"]||"",s=c.length>=12?c.substr(10,2):"05";sendCS("5F",0x9f,"00"+h2(e)+s,"06","Set Env")}
+function setSafe(s){hi("sfG","safe"+s);sendCS("5D",0xa1,"000000"+h2(s)+"0e","08","Set Safety")}
+function setPPO2(){const v=Math.round(parseFloat(document.getElementById("pR").value)*10);const c=memMap["5D"]||"",s=c.length>=16?c.substr(14,2):"01";sendCS("5D",0xa1,"000000"+s+h2(v),"08","Set PPO2")}
+function setAir(){const a=parseInt(document.getElementById("aR").value);const c=memMap["5C"]||"";sendCS("5C",0xa2,(c.length>=10?c.substr(6,4):"03e9")+(c.length>=14?c.substr(10,4):"0000")+h2(a)+(c.length>=18?c.substr(16,2):"00"),"08","Set Air")}
+function setSDepth(){const d=parseInt(document.getElementById("sdep").value);if(isNaN(d))return;const c=memMap["5C"]||"";sendCS("5C",0xa2,((d*100+1000)>>>0).toString(16).padStart(4,"0")+(c.length>=14?c.substr(10,4):"0000")+(c.length>=16?c.substr(14,2):"15")+(c.length>=18?c.substr(16,2):"00"),"08","Set Depth Alarm")}
+function setSTime(){const t=parseInt(document.getElementById("stim").value);if(isNaN(t))return;const c=memMap["5C"]||"";sendCS("5C",0xa2,(c.length>=10?c.substr(6,4):"03e9")+t.toString(16).padStart(4,"0")+(c.length>=16?c.substr(14,2):"15")+(c.length>=18?c.substr(16,2):"00"),"08","Set Time Alarm")}
+function setFDT(){const s=parseInt(document.getElementById("ftR").value);sendCS("5D",0xa1,"0000"+h2(Math.round((s-30)/5))+"000e","08","Set FD Time")}
+function setFDA(n){const v=parseInt(document.getElementById("fd"+n).value);if(isNaN(v)||v<5)return;log("FD alarm "+n+" = "+v+"m")}
+
+// ═══════ DIAGNOSTICS ═══════
+function tryTimeFormat(fmt){
+  const n=new Date();
+  const yr=n.getFullYear(), mo=n.getMonth()+1, dy=n.getDate();
+  const hr=n.getHours(), mn=n.getMinutes(), sc=n.getSeconds();
+  const yLo=yr&0xFF, yHi=(yr>>8)&0xFF;
+  const y2=yr-2000; // single byte year
+
+  let payload, len, desc;
+  switch(fmt){
+    case 1: // original cosmiq5-web style: year-2000 single byte
+      payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
+      len="06"; desc="A: y2k,mo,dy,hr,mn,sc";break;
+    case 2: // 2-byte year, standard calendar order
+      payload=[h2(yLo),h2(yHi),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
+      len="07"; desc="B: yrLE,mo,dy,hr,mn,sc";break;
+    case 3: // 2-byte year, day-month, min-hour (matches stored header)
+      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(mn),h2(hr),h2(sc)].join('');
+      len="07"; desc="C: yrLE,dy,mo,mn,hr,sc";break;
+    case 4: // 2-byte year, day-month, hour-min
+      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(hr),h2(mn),h2(sc)].join('');
+      len="07"; desc="D: yrLE,dy,mo,hr,mn,sc";break;
+    case 5: // reversed
+      payload=[h2(sc),h2(mn),h2(hr),h2(dy),h2(mo),h2(yLo),h2(yHi)].join('');
+      len="07"; desc="E: reversed";break;
+    case 6: // 6-byte data + 2 zeros padding = 8 bytes
+      payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00','00'].join('');
+      len="08"; desc="F: y2k+pad00";break;
+    case 7: // 2-byte year standard + 1 padding
+      payload=[h2(yLo),h2(yHi),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00'].join('');
+      len="08"; desc="G: yrLE,mo,dy,hr,mn,sc,00";break;
+    case 8: // 2-byte year + day/month swap + 1 padding
+      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(hr),h2(mn),h2(sc),'00'].join('');
+      len="08"; desc="H: yrLE,dy,mo,hr,mn,sc,00";break;
+  }
+  log(`Testing time format ${desc}: #61 ck ${len} ${payload}`,"li");
+  sendCS("61",0x9d,payload,len,"Time format "+desc);
+}
+
+async function tryTimeQueryFirst(){
+  const n=new Date();
+  const y2=n.getFullYear()-2000,mo=n.getMonth()+1,dy=n.getDate();
+  const hr=n.getHours(),mn=n.getMinutes(),sc=n.getSeconds();
+  log("Query 0x58 first, then write...","li");
+  // 1. Query system settings to prime the watch
+  await send(bq(0x58),"Query 0x58 (system)");
+  await sleep(800);
+  // 2. Then send time write
+  const payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
+  sendCS("61",0x9d,payload,"06","Time (after query)");
+}
+
+async function tryTimeQueryFirst2(){
+  const n=new Date();
+  const y2=n.getFullYear()-2000,mo=n.getMonth()+1,dy=n.getDate();
+  const hr=n.getHours(),mn=n.getMinutes(),sc=n.getSeconds();
+  log("Query 0x58, then write 8-byte format...","li");
+  await send(bq(0x58),"Query 0x58");
+  await sleep(800);
+  const payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00','00'].join('');
+  sendCS("61",0x9d,payload,"08","Time 8-byte (after query)");
+}
+
+function updateHunter(){
+  const cs=[{id:"58",d:"System"},{id:"5F",d:"System2"},{id:"5C",d:"Scuba1"},{id:"5B",d:"Scuba2"},{id:"5D",d:"Freedive1"},{id:"60",d:"Freedive2"}];
+  let h=`<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px">`;
+  cs.forEach(c=>{
+    const raw=memMap[c.id]||"—";
+    let ph=raw;
+    if(raw!=="—"&&raw.length>6){ph="";const p=raw.substring(6);for(let i=0;i<p.length;i+=2)ph+=`<span style="display:inline-block;padding:1px 4px;background:rgba(0,196,180,.08);border-radius:3px;margin:1px;color:var(--teal)">${p.substr(i,2)}</span>`}
+    h+=`<tr><td style="padding:6px;border-bottom:1px solid var(--bdr);color:var(--dim)">${c.id}<br><span style="font-size:9px;opacity:.6">${c.d}</span></td><td style="padding:6px;border-bottom:1px solid var(--bdr)">${ph}</td></tr>`;
+  });
+  document.getElementById("htbl").innerHTML=h+"</table>";
+}
+
+function log(m,cls=""){
+  const el=document.getElementById("logbox");
+  el.innerHTML+=`\n<span class="${cls}">${m}</span>`;
+  el.scrollTop=el.scrollHeight;
+}
+function delCurrentDive(){
+  if(!confirm("Delete this dive?"))return;
+  dives=dives.filter(d=>d.id!==currentDiveId);
+  localStorage.removeItem('cq_photos_'+currentDiveId);
+  localStorage.setItem('cq_dives',JSON.stringify(dives));
+  closeModal();renderDives();
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+</script>
+</body>
+</html>
