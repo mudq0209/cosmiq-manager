@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>COSMIQ+ Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --deep:#0a1628;--mid:#0d2240;--light:#1a3a5c;
@@ -323,6 +324,24 @@ textarea.edit-input{height:80px;resize:none}
 }
 .erow{display:flex;gap:8px;margin-bottom:12px}
 .erow .bs{flex:1;text-align:center}
+
+/* Google Drive Sync */
+.gdrive-bar{
+  background:var(--surf);border:1px solid var(--bdr);border-radius:12px;
+  padding:12px 14px;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;
+}
+.gdrive-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.gdrive-info{flex:1;min-width:0}
+.gdrive-name{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gdrive-status{font-size:10px;color:var(--dim);margin-top:1px}
+.gdrive-btn{
+  padding:7px 12px;border-radius:8px;border:none;cursor:pointer;
+  font-size:11px;font-weight:600;font-family:var(--sans);white-space:nowrap;transition:.2s;
+}
+.gdrive-connect{background:white;color:#1a73e8;display:flex;align-items:center;gap:5px}
+.gdrive-sync{background:rgba(0,196,180,.15);color:var(--teal);border:1px solid rgba(0,196,180,.3)}
+.gdrive-signout{background:rgba(231,111,81,.1);color:var(--danger);border:1px solid rgba(231,111,81,.2);margin-left:4px}
 </style>
 </head>
 <body>
@@ -361,6 +380,18 @@ textarea.edit-input{height:80px;resize:none}
     </div>
     <div class="card">
       <div class="ctitle">Saved Dives <span class="badge" id="dbadge">0</span></div>
+      <!-- Google Drive Sync Bar -->
+      <div class="gdrive-bar" id="gdriveBar">
+        <div style="font-size:20px">☁️</div>
+        <div class="gdrive-info">
+          <div class="gdrive-name">Google Drive Sync</div>
+          <div class="gdrive-status" id="gdriveStatus">Not connected — data saved locally only</div>
+        </div>
+        <button class="gdrive-btn gdrive-connect" id="gdriveConnectBtn" onclick="gdriveSignIn()">
+          <svg class="gdrive-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Connect
+        </button>
+      </div>
       <div class="erow">
         <button class="bs" onclick="exportJSON()">Export JSON</button>
         <button class="bs bc" onclick="exportCSV()">Export CSV</button>
@@ -944,6 +975,7 @@ async function downloadAll(){
   renderDives();
   prog(100,`Done! ${savedIds.length} dive(s) downloaded.`);
   updateDlBtn(0);
+  gdriveMaybeAutoSave();
   btn.disabled=false;
 }
 
@@ -1263,6 +1295,7 @@ function saveDiveEdit(){
   const btn=document.querySelector('.modal-save-btn');
   btn.textContent='✅ Saved!';
   setTimeout(()=>btn.textContent='💾 Save Changes',1500);
+  gdriveMaybeAutoSave();
 }
 
 // ═══════ PHOTO MANAGEMENT ═══════
@@ -1575,7 +1608,190 @@ function delCurrentDive(){
   closeModal();renderDives();
 }
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+// ═══════ GOOGLE DRIVE SYNC ═══════
+const GDRIVE_CLIENT_ID='16803641878-2avbqlt7m81plgej0sbq53erf4cod2bb.apps.googleusercontent.com';
+const GDRIVE_SCOPES='https://www.googleapis.com/auth/drive.appdata';
+const GDRIVE_FOLDER='cosmiq-manager';
+const GDRIVE_FILENAME='dives.json';
+
+let gdriveToken=null;
+let gdriveUser=null;
+
+// Restore token from session
+function gdriveInit(){
+  const saved=sessionStorage.getItem('gdrive_token');
+  if(saved){
+    gdriveToken=saved;
+    const name=sessionStorage.getItem('gdrive_name')||'Google Drive';
+    const pic=sessionStorage.getItem('gdrive_pic')||'';
+    gdriveSetConnected(name,pic);
+  }
+}
+
+function gdriveSignIn(){
+  const client=google.accounts.oauth2.initTokenClient({
+    client_id:GDRIVE_CLIENT_ID,
+    scope:GDRIVE_SCOPES,
+    callback:(resp)=>{
+      if(resp.error){log('Google sign-in error: '+resp.error,'le');return;}
+      gdriveToken=resp.access_token;
+      sessionStorage.setItem('gdrive_token',gdriveToken);
+      // Get user info
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
+        headers:{Authorization:'Bearer '+gdriveToken}
+      }).then(r=>r.json()).then(u=>{
+        sessionStorage.setItem('gdrive_name',u.name||'Google User');
+        sessionStorage.setItem('gdrive_pic',u.picture||'');
+        gdriveSetConnected(u.name||'Google User',u.picture||'');
+        log('Google Drive connected: '+u.name,'li');
+        // Auto-load from Drive on first connect
+        gdriveLoad();
+      });
+    }
+  });
+  client.requestAccessToken();
+}
+
+function gdriveSignOut(){
+  if(!confirm('Disconnect Google Drive? Your local data will remain.'))return;
+  gdriveToken=null;
+  sessionStorage.removeItem('gdrive_token');
+  sessionStorage.removeItem('gdrive_name');
+  sessionStorage.removeItem('gdrive_pic');
+  document.getElementById('gdriveConnectBtn').style.display='flex';
+  document.getElementById('gdriveStatus').textContent='Not connected — data saved locally only';
+  const bar=document.getElementById('gdriveBar');
+  bar.innerHTML=`
+    <div style="font-size:20px">☁️</div>
+    <div class="gdrive-info">
+      <div class="gdrive-name">Google Drive Sync</div>
+      <div class="gdrive-status" id="gdriveStatus">Not connected — data saved locally only</div>
+    </div>
+    <button class="gdrive-btn gdrive-connect" onclick="gdriveSignIn()">
+      <svg style="width:16px;height:16px" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Connect
+    </button>`;
+}
+
+function gdriveSetConnected(name,pic){
+  const bar=document.getElementById('gdriveBar');
+  bar.innerHTML=`
+    ${pic?`<img class="gdrive-avatar" src="${pic}" />`:`<div style="font-size:20px">👤</div>`}
+    <div class="gdrive-info">
+      <div class="gdrive-name">${name}</div>
+      <div class="gdrive-status" id="gdriveStatus">Connected — tap Sync to update</div>
+    </div>
+    <button class="gdrive-btn gdrive-sync" onclick="gdriveSync()">⬆⬇ Sync</button>
+    <button class="gdrive-btn gdrive-signout" onclick="gdriveSignOut()">✕</button>`;
+}
+
+// Find or get the appDataFolder file ID for dives.json
+async function gdriveFindFile(){
+  const r=await fetch(
+    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%22'+GDRIVE_FILENAME+'%22&fields=files(id,name,modifiedTime)',
+    {headers:{Authorization:'Bearer '+gdriveToken}}
+  );
+  const d=await r.json();
+  return d.files&&d.files.length>0?d.files[0]:null;
+}
+
+// Upload dives to Drive (appDataFolder — hidden from user's Drive UI but accessible)
+async function gdriveSave(){
+  if(!gdriveToken){log('Not connected to Google Drive','le');return;}
+  const el=document.getElementById('gdriveStatus');
+  if(el)el.textContent='Saving to Drive...';
+  try{
+    const existing=await gdriveFindFile();
+    const content=JSON.stringify({
+      dives,
+      downloadedIdx:[...downloadedIdx],
+      savedAt:new Date().toISOString(),
+      version:1
+    });
+    const blob=new Blob([content],{type:'application/json'});
+    let url,method,headers={Authorization:'Bearer '+gdriveToken};
+    if(existing){
+      url=`https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media`;
+      method='PATCH';
+    } else {
+      // Create new file in appDataFolder
+      const meta=JSON.stringify({name:GDRIVE_FILENAME,parents:['appDataFolder']});
+      const form=new FormData();
+      form.append('metadata',new Blob([meta],{type:'application/json'}));
+      form.append('file',blob);
+      url='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      method='POST';
+      const r=await fetch(url,{method,headers,body:form});
+      const d=await r.json();
+      if(el)el.textContent='Saved to Drive ✓ — '+new Date().toLocaleTimeString();
+      log('Saved to Google Drive','li');
+      return;
+    }
+    await fetch(url,{method,headers,body:blob});
+    if(el)el.textContent='Saved to Drive ✓ — '+new Date().toLocaleTimeString();
+    log('Saved to Google Drive','li');
+  }catch(e){
+    if(el)el.textContent='Save failed: '+e.message;
+    log('Drive save error: '+e,'le');
+  }
+}
+
+// Load dives from Drive
+async function gdriveLoad(){
+  if(!gdriveToken)return;
+  const el=document.getElementById('gdriveStatus');
+  if(el)el.textContent='Loading from Drive...';
+  try{
+    const file=await gdriveFindFile();
+    if(!file){
+      if(el)el.textContent='No Drive data yet — will save on next sync';
+      return;
+    }
+    const r=await fetch(
+      `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+      {headers:{Authorization:'Bearer '+gdriveToken}}
+    );
+    const data=await r.json();
+    if(data.dives&&Array.isArray(data.dives)){
+      // Merge: keep any local dives not in Drive, add Drive dives not local
+      const localIds=new Set(dives.map(d=>d.id));
+      const driveIds=new Set(data.dives.map(d=>d.id));
+      // Add Drive dives that aren't local
+      const newFromDrive=data.dives.filter(d=>!localIds.has(d.id));
+      dives=[...dives,...newFromDrive];
+      // Merge downloadedIdx
+      if(data.downloadedIdx)data.downloadedIdx.forEach(i=>downloadedIdx.add(i));
+      localStorage.setItem('cq_dives',JSON.stringify(dives));
+      localStorage.setItem('cq_dl_idx',JSON.stringify([...downloadedIdx]));
+      renderDives();
+      if(el)el.textContent=`Loaded from Drive ✓ — ${data.dives.length} dives`;
+      log(`Loaded ${newFromDrive.length} new dives from Drive`,'li');
+    } else {
+      if(el)el.textContent='Connected ✓';
+    }
+  }catch(e){
+    if(el)el.textContent='Load failed: '+e.message;
+    log('Drive load error: '+e,'le');
+  }
+}
+
+// Sync: load first, then save (merge both directions)
+async function gdriveSync(){
+  if(!gdriveToken){gdriveSignIn();return;}
+  const el=document.getElementById('gdriveStatus');
+  if(el)el.textContent='Syncing...';
+  await gdriveLoad();
+  await sleep(300);
+  await gdriveSave();
+}
+
+// Auto-save to Drive whenever dives change (if connected)
+function gdriveMaybeAutoSave(){
+  if(gdriveToken)gdriveSave();
+}
+
+// Init on load
+gdriveInit();
 </script>
 </body>
 </html>
