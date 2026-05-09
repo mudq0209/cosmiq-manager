@@ -501,26 +501,6 @@ textarea.edit-input{height:80px;resize:none}
       <button class="bs bp" style="width:100%;margin-bottom:12px" onclick="readSettings()">Refetch All Settings</button>
       <div id="htbl"><div class="empty"><span class="ico">🔍</span><p>No data yet</p></div></div>
     </div>
-    <div class="card">
-      <div class="ctitle">Time Sync Tester</div>
-      <p style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6">
-        Try different time command formats to find the one the watch accepts. Check log for REJECTED or a valid response.
-      </p>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="bs" onclick="tryTimeFormat(1)">Format A: year-2000, mo, dy, hr, mn, sc (len=06)</button>
-        <button class="bs" onclick="tryTimeFormat(2)">Format B: yr_lo, yr_hi, mo, dy, hr, mn, sc (len=07)</button>
-        <button class="bs" onclick="tryTimeFormat(3)">Format C: yr_lo, yr_hi, dy, mo, mn, hr, sc (len=07)</button>
-        <button class="bs" onclick="tryTimeFormat(4)">Format D: yr_lo, yr_hi, dy, mo, hr, mn, sc (len=07)</button>
-        <button class="bs" onclick="tryTimeFormat(5)">Format E: sc, mn, hr, dy, mo, yr_lo, yr_hi (reversed)</button>
-        <div style="border-top:1px solid var(--bdr);padding-top:8px;font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px">8-BYTE VARIANTS</div>
-        <button class="bs" onclick="tryTimeFormat(6)">Format F: year-2000, mo, dy, hr, mn, sc, 00, 00 (len=08)</button>
-        <button class="bs" onclick="tryTimeFormat(7)">Format G: yr_lo, yr_hi, mo, dy, hr, mn, sc, 00 (len=08)</button>
-        <button class="bs" onclick="tryTimeFormat(8)">Format H: yr_lo, yr_hi, dy, mo, hr, mn, sc, 00 (len=08)</button>
-        <div style="border-top:1px solid var(--bdr);padding-top:8px;font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px">QUERY-FIRST (CHALLENGE-RESPONSE)</div>
-        <button class="bs bp" onclick="tryTimeQueryFirst()">Query 0x58 first, then write time (Format A)</button>
-        <button class="bs bp" onclick="tryTimeQueryFirst2()">Query 0x58 first, then write time (Format F 8-byte)</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1570,68 +1550,6 @@ function setFDT(){const s=parseInt(document.getElementById("ftR").value);sendCS(
 function setFDA(n){const v=parseInt(document.getElementById("fd"+n).value);if(isNaN(v)||v<5)return;log("FD alarm "+n+" = "+v+"m")}
 
 // ═══════ DIAGNOSTICS ═══════
-function tryTimeFormat(fmt){
-  const n=new Date();
-  const yr=n.getFullYear(), mo=n.getMonth()+1, dy=n.getDate();
-  const hr=n.getHours(), mn=n.getMinutes(), sc=n.getSeconds();
-  const yLo=yr&0xFF, yHi=(yr>>8)&0xFF;
-  const y2=yr-2000; // single byte year
-
-  let payload, len, desc;
-  switch(fmt){
-    case 1: // original cosmiq5-web style: year-2000 single byte
-      payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
-      len="06"; desc="A: y2k,mo,dy,hr,mn,sc";break;
-    case 2: // 2-byte year, standard calendar order
-      payload=[h2(yLo),h2(yHi),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
-      len="07"; desc="B: yrLE,mo,dy,hr,mn,sc";break;
-    case 3: // 2-byte year, day-month, min-hour (matches stored header)
-      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(mn),h2(hr),h2(sc)].join('');
-      len="07"; desc="C: yrLE,dy,mo,mn,hr,sc";break;
-    case 4: // 2-byte year, day-month, hour-min
-      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(hr),h2(mn),h2(sc)].join('');
-      len="07"; desc="D: yrLE,dy,mo,hr,mn,sc";break;
-    case 5: // reversed
-      payload=[h2(sc),h2(mn),h2(hr),h2(dy),h2(mo),h2(yLo),h2(yHi)].join('');
-      len="07"; desc="E: reversed";break;
-    case 6: // 6-byte data + 2 zeros padding = 8 bytes
-      payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00','00'].join('');
-      len="08"; desc="F: y2k+pad00";break;
-    case 7: // 2-byte year standard + 1 padding
-      payload=[h2(yLo),h2(yHi),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00'].join('');
-      len="08"; desc="G: yrLE,mo,dy,hr,mn,sc,00";break;
-    case 8: // 2-byte year + day/month swap + 1 padding
-      payload=[h2(yLo),h2(yHi),h2(dy),h2(mo),h2(hr),h2(mn),h2(sc),'00'].join('');
-      len="08"; desc="H: yrLE,dy,mo,hr,mn,sc,00";break;
-  }
-  log(`Testing time format ${desc}: #61 ck ${len} ${payload}`,"li");
-  sendCS("61",0x9d,payload,len,"Time format "+desc);
-}
-
-async function tryTimeQueryFirst(){
-  const n=new Date();
-  const y2=n.getFullYear()-2000,mo=n.getMonth()+1,dy=n.getDate();
-  const hr=n.getHours(),mn=n.getMinutes(),sc=n.getSeconds();
-  log("Query 0x58 first, then write...","li");
-  // 1. Query system settings to prime the watch
-  await send(bq(0x58),"Query 0x58 (system)");
-  await sleep(800);
-  // 2. Then send time write
-  const payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc)].join('');
-  sendCS("61",0x9d,payload,"06","Time (after query)");
-}
-
-async function tryTimeQueryFirst2(){
-  const n=new Date();
-  const y2=n.getFullYear()-2000,mo=n.getMonth()+1,dy=n.getDate();
-  const hr=n.getHours(),mn=n.getMinutes(),sc=n.getSeconds();
-  log("Query 0x58, then write 8-byte format...","li");
-  await send(bq(0x58),"Query 0x58");
-  await sleep(800);
-  const payload=[h2(y2),h2(mo),h2(dy),h2(hr),h2(mn),h2(sc),'00','00'].join('');
-  sendCS("61",0x9d,payload,"08","Time 8-byte (after query)");
-}
-
 function updateHunter(){
   const cs=[{id:"58",d:"System"},{id:"5F",d:"System2"},{id:"5C",d:"Scuba1"},{id:"5B",d:"Scuba2"},{id:"5D",d:"Freedive1"},{id:"60",d:"Freedive2"}];
   let h=`<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px">`;
