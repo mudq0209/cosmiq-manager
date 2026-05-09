@@ -1293,6 +1293,7 @@ function saveDiveEdit(){
   d.weather=getOpt("weather");d.waves=getOpt("waves");d.current=getOpt("current");d.vis=getOpt("vis");d.suitType=getOpt("suit");
   const purpose=document.querySelector('.iopt[data-group="purpose"].active');d.purpose=purpose?purpose.dataset.val:null;
   d.features=[...document.querySelectorAll('.ctag.active')].map(b=>b.dataset.val);
+  d.updatedAt=new Date().toISOString(); // track last edit time for sync merge
   localStorage.setItem('cq_dives',JSON.stringify(dives));
   renderDives();
   // Update modal subtitle
@@ -1835,9 +1836,28 @@ async function gdriveLoad(){
       {headers:{Authorization:'Bearer '+gdriveToken}});
     const data=await r.json();
     if(data.dives&&Array.isArray(data.dives)){
-      const localIds=new Set(dives.map(d=>d.id));
-      const newFromDrive=data.dives.filter(d=>!localIds.has(d.id));
-      dives=[...dives,...newFromDrive];
+      // Smart merge: for each Drive dive, compare updatedAt with local version
+      const localMap=new Map(dives.map(d=>[d.id,d]));
+      for(const driveDive of data.dives){
+        const local=localMap.get(driveDive.id);
+        if(!local){
+          // New dive from Drive — add it
+          dives.push(driveDive);
+          localMap.set(driveDive.id,driveDive);
+        } else {
+          // Dive exists locally — use whichever was updated more recently
+          const driveTime=new Date(driveDive.updatedAt||driveDive.savedAt||0).getTime();
+          const localTime=new Date(local.updatedAt||local.savedAt||0).getTime();
+          if(driveTime>localTime){
+            // Drive version is newer — update all editable fields
+            const editFields=['location','country','diveType','purpose','features',
+              'weather','waves','current','vis','suitType','airTemp','airMix',
+              'startBar','endBar','suitThickness','notes','rating','updatedAt',
+              'coverPhotoId'];
+            editFields.forEach(f=>{if(driveDive[f]!==undefined)local[f]=driveDive[f];});
+          }
+        }
+      }
       if(data.downloadedIdx)data.downloadedIdx.forEach(i=>downloadedIdx.add(i));
       // Restore photo metadata
       if(data.photoMeta){
@@ -1851,8 +1871,8 @@ async function gdriveLoad(){
       localStorage.setItem('cq_dives',JSON.stringify(dives));
       localStorage.setItem('cq_dl_idx',JSON.stringify([...downloadedIdx]));
       renderDives();
-      gdriveSetStatus('Loaded ✓ — '+dives.length+' dives');
-      log('Loaded from Drive: '+newFromDrive.length+' new dives','li');
+      gdriveSetStatus('Synced ✓ — '+dives.length+' dives');
+      log('Loaded from Drive — '+dives.length+' total dives','li');
     } else {
       gdriveSetStatus('Connected ✓');
     }
